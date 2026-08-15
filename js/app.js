@@ -69,7 +69,7 @@ function renderSidebar(currentHash) {
   const collapsed = sidebarCollapsed;
 
   sc.innerHTML = `
-  <aside id="sidebar" class="flex flex-col bg-white border-r border-gray-200 transition-all duration-300 shrink-0 ${collapsed ? 'w-16' : 'w-64'}">
+  <aside id="sidebar" class="flex flex-col h-full bg-white border-r border-gray-200 transition-all duration-300 shrink-0 ${collapsed ? 'w-16' : 'w-64'}">
     <!-- Logo -->
     <div class="flex items-center justify-between px-4 py-4 border-b border-gray-200 min-h-[64px]">
       <div class="flex items-center gap-2 ${collapsed ? 'mx-auto' : ''}">
