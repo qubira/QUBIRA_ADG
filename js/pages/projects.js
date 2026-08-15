@@ -3,7 +3,7 @@ import { toast, showModal, closeModal, pageHeader,
          projectStatusBadge, priorityBadge, projectTypeBadge, progressBar,
          spinner, icon, fmtDateTime, isOverdue, overdueBadge } from '../utils.js';
 
-let _projects = [], _users = [], _docTypes = [], _filter = { status: '', search: '' };
+let _projects = [], _users = [], _docTypes = [], _families = [], _filter = { status: '', search: '', family: '' };
 let _reqs = [], _reqProjectId = null;
 
 export function render() {
@@ -12,6 +12,7 @@ export function render() {
   load();
   api.get('/users').then(u => { _users = u; }).catch(() => {});
   api.get('/document-types').then(d => { _docTypes = d; }).catch(() => {});
+  api.get('/projects/families').then(f => { _families = f; }).catch(() => {});
 }
 
 function load() {
@@ -46,6 +47,10 @@ function renderPage() {
         <option value="completed"      ${_filter.status==='completed'     ?'selected':''}>Completados</option>
         <option value="cancelled"      ${_filter.status==='cancelled'     ?'selected':''}>Cancelados</option>
       </select>
+      <select id="family-filter" class="input w-auto">
+        <option value="">Todas las familias</option>
+        ${_families.map(f => `<option value="${esc(f.family)}" ${_filter.family===f.family?'selected':''}>${esc(f.family)} (${f.count})</option>`).join('')}
+      </select>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="projects-grid">
@@ -67,6 +72,10 @@ function renderPage() {
   });
   document.getElementById('status-filter').addEventListener('change', e => {
     _filter.status = e.target.value;
+    load();
+  });
+  document.getElementById('family-filter').addEventListener('change', e => {
+    _filter.family = e.target.value;
     load();
   });
 
@@ -139,6 +148,7 @@ function projectCard(p) {
       ${projectTypeBadge(p.project_type)}
       ${overdue ? overdueBadge() : ''}
     </div>
+    ${p.family ? `<div class="mb-3 -mt-1"><span class="badge bg-pink-50 text-pink-700 inline-flex items-center gap-1">${icon('workspaces', 12)} ${esc(p.family)}</span></div>` : ''}
     <div class="mb-3">
       <div class="flex justify-between text-xs text-gray-500 mb-1">
         <span>Avance</span><span>${p.progress}%</span>
@@ -164,7 +174,7 @@ function openModal(editing = null) {
   const title = editing ? 'Editar Proyecto' : 'Nuevo Proyecto';
   const f = editing || { name:'', client:'', description:'', status:'pending', progress:0, budget:'', currency:'USD',
     start_date:'', end_date:'', responsible_id:'', priority:'medium', company_name:'', company_logo:'',
-    id_document_type:'dni', id_document_number:'', project_type:'web', github_url:'', website_url:'' };
+    id_document_type:'dni', id_document_number:'', project_type:'web', github_url:'', website_url:'', family:'' };
 
   const userOpts = _users.map(u => `<option value="${u.id}" ${String(f.responsible_id)===String(u.id)?'selected':''}>${esc(u.name)}</option>`).join('');
   const docOpts = buildDocOpts(f.id_document_type);
@@ -234,6 +244,14 @@ function openModal(editing = null) {
               <option value="high"   ${f.priority==='high'  ?'selected':''}>Alta</option>
               <option value="urgent" ${f.priority==='urgent'?'selected':''}>Urgente</option>
             </select>
+          </div>
+          <div>
+            <label class="label">Familia de Proyecto</label>
+            <input class="input" name="family" list="family-list" value="${esc(f.family||'')}" placeholder="Ej: GEOVS">
+            <datalist id="family-list">
+              ${_families.map(fm => `<option value="${esc(fm.family)}">`).join('')}
+            </datalist>
+            <p class="text-xs text-gray-400 mt-1">Vincula proyectos que son variantes del mismo producto (web, móvil, escritorio)</p>
           </div>
         </div>
 
