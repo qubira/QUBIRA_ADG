@@ -319,7 +319,7 @@ function openModal(editing = null) {
           </div>
         </div>
 
-        ${sectionTitle('Presupuesto, Fechas y Avance')}
+        ${sectionTitle('Presupuesto y Fechas')}
         <div class="grid grid-cols-2 gap-3 mb-5">
           <div>
             <label class="label">Presupuesto</label>
@@ -337,11 +337,7 @@ function openModal(editing = null) {
             <label class="label">Fecha de Entrega</label>
             <input class="input" type="date" name="end_date" value="${f.end_date||''}">
           </div>
-          <div>
-            <label class="label">Avance (%)</label>
-            <input class="input" type="number" name="progress" min="0" max="100" value="${f.progress}">
-          </div>
-          <div>
+          <div class="col-span-2">
             <label class="label">Responsable</label>
             <select class="input" name="responsible_id">
               <option value="">Sin asignar</option>
