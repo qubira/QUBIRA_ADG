@@ -3,7 +3,7 @@ import { toast, showModal, closeModal, pageHeader,
          projectStatusBadge, priorityBadge, progressBar,
          spinner, icon, fmtDateTime, isOverdue, overdueBadge } from '../utils.js';
 
-let _projects = [], _users = [], _filter = { status: '', search: '' };
+let _projects = [], _users = [], _docTypes = [], _filter = { status: '', search: '' };
 let _reqs = [], _reqProjectId = null;
 
 export function render() {
@@ -11,6 +11,7 @@ export function render() {
   main.innerHTML = `<div class="p-6 max-w-7xl mx-auto" id="projects-page">${spinner()}</div>`;
   load();
   api.get('/users').then(u => { _users = u; }).catch(() => {});
+  api.get('/document-types').then(d => { _docTypes = d; }).catch(() => {});
 }
 
 function load() {
@@ -154,18 +155,20 @@ function projectCard(p) {
   </a>`;
 }
 
-const DOC_TYPES = [['dni','DNI'],['ce','CE'],['pasaporte','Pasaporte']];
+const DOC_TYPES = [['dni','DNI'],['ce','CE'],['pasaporte','Pasaporte'],['ruc','RUC']];
 const CURRENCIES = [['USD','USD - Dólares'],['EUR','EUR - Euros'],['JPY','JPY - Yenes'],['PEN','PEN - Soles']];
+const PROJECT_TYPES = [['web','Web'],['mobile','Aplicativo Móvil'],['desktop','Aplicativo de Escritorio']];
 
 function openModal(editing = null) {
   const title = editing ? 'Editar Proyecto' : 'Nuevo Proyecto';
   const f = editing || { name:'', client:'', description:'', status:'pending', progress:0, budget:'', currency:'USD',
     start_date:'', end_date:'', responsible_id:'', priority:'medium', company_name:'', company_logo:'',
-    id_document_type:'dni', id_document_number:'' };
+    id_document_type:'dni', id_document_number:'', project_type:'web', github_url:'', website_url:'' };
 
   const userOpts = _users.map(u => `<option value="${u.id}" ${String(f.responsible_id)===String(u.id)?'selected':''}>${esc(u.name)}</option>`).join('');
-  const docOpts = DOC_TYPES.map(([v,l]) => `<option value="${v}" ${f.id_document_type===v?'selected':''}>${l}</option>`).join('');
+  const docOpts = buildDocOpts(f.id_document_type);
   const currencyOpts = CURRENCIES.map(([v,l]) => `<option value="${v}" ${f.currency===v?'selected':''}>${l}</option>`).join('');
+  const projectTypeOpts = PROJECT_TYPES.map(([v,l]) => `<option value="${v}" ${(f.project_type||'web')===v?'selected':''}>${l}</option>`).join('');
 
   const sectionTitle = label => `<p class="text-xs font-bold text-gray-500 uppercase tracking-wide pb-2 mb-3 border-b border-gray-100">${label}</p>`;
 
@@ -205,11 +208,18 @@ function openModal(editing = null) {
           </div>
           <div>
             <label class="label">Tipo de Documento</label>
-            <select class="input" name="id_document_type">${docOpts}</select>
+            <div class="flex gap-1.5">
+              <select class="input" name="id_document_type" id="doc-type-select">${docOpts}</select>
+              <button type="button" id="doc-type-add" class="btn-secondary px-2.5 shrink-0" title="Agregar tipo de documento">${icon('add',16)}</button>
+            </div>
           </div>
           <div>
             <label class="label">Número de Documento</label>
             <input class="input" name="id_document_number" value="${esc(f.id_document_number||'')}" placeholder="Ej: 1234567890">
+          </div>
+          <div>
+            <label class="label">Tipo de Proyecto</label>
+            <select class="input" name="project_type">${projectTypeOpts}</select>
           </div>
           <div>
             <label class="label">Estado</label>
@@ -223,6 +233,18 @@ function openModal(editing = null) {
               <option value="high"   ${f.priority==='high'  ?'selected':''}>Alta</option>
               <option value="urgent" ${f.priority==='urgent'?'selected':''}>Urgente</option>
             </select>
+          </div>
+        </div>
+
+        ${sectionTitle('Enlaces')}
+        <div class="grid grid-cols-2 gap-3 mb-5">
+          <div>
+            <label class="label">Link de GitHub</label>
+            <input class="input" type="url" name="github_url" value="${esc(f.github_url||'')}" placeholder="https://github.com/...">
+          </div>
+          <div>
+            <label class="label">Link de la Página</label>
+            <input class="input" type="url" name="website_url" value="${esc(f.website_url||'')}" placeholder="https://...">
           </div>
         </div>
 
@@ -289,6 +311,7 @@ function openModal(editing = null) {
   `);
 
   document.getElementById('modal-cancel').addEventListener('click', closeModal);
+  document.getElementById('doc-type-add').addEventListener('click', () => addCustomDocType(document.getElementById('doc-type-select')));
 
   document.getElementById('logo-dropzone').addEventListener('click', () => {
     document.getElementById('logo-file-input').click();
@@ -402,8 +425,8 @@ function renderRequirementsList() {
 
 function reqRow(r) {
   return `
-  <div class="flex items-center gap-2 p-2 rounded-lg border border-gray-100 bg-white">
-    <p class="flex-1 text-xs text-gray-700 truncate" title="${esc(r.description)}">${esc(r.description)}</p>
+  <div class="flex items-start gap-2 p-2 rounded-lg border border-gray-100 bg-white">
+    <p class="flex-1 text-xs text-gray-700 whitespace-pre-wrap break-words">${esc(r.description)}</p>
     <button type="button" class="req-del text-gray-300 hover:text-red-500 shrink-0" data-id="${r.id ?? r._localId}">${icon('delete',14)}</button>
   </div>`;
 }
@@ -454,6 +477,25 @@ function openHistoryModal(p) {
     const c = document.getElementById('history-list');
     if (c) c.innerHTML = '<p class="text-center text-red-400 py-8 text-sm">Error al cargar el historial</p>';
   });
+}
+
+function buildDocOpts(current) {
+  const fixed = DOC_TYPES.map(([v]) => v);
+  const custom = _docTypes.map(d => d.label);
+  const opts = DOC_TYPES.map(([v,l]) => [v,l]).concat(_docTypes.map(d => [d.label, d.label]));
+  if (current && !fixed.includes(current) && !custom.includes(current)) opts.push([current, current]);
+  return opts.map(([v,l]) => `<option value="${esc(v)}" ${current===v?'selected':''}>${esc(l)}</option>`).join('');
+}
+
+async function addCustomDocType(selectEl) {
+  const label = prompt('Nombre del nuevo tipo de documento (ej: Carné de Extranjería):');
+  if (!label || !label.trim()) return;
+  try {
+    const created = await api.post('/document-types', { label: label.trim() });
+    _docTypes.push(created);
+    selectEl.innerHTML = buildDocOpts(created.label);
+    toast('Tipo de documento agregado');
+  } catch (err) { toast(err.message || 'Error al agregar', 'error'); }
 }
 
 function statusOpts(current) {

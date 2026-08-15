@@ -6,6 +6,7 @@ import { render as renderDashboard }   from './pages/dashboard.js';
 import { render as renderProjects }    from './pages/projects.js';
 import { render as renderProjectDetail } from './pages/project-detail.js';
 import { render as renderContracts }   from './pages/contracts.js';
+import { render as renderConfig }      from './pages/configuracion.js';
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 const exactRoutes = {};
@@ -41,6 +42,7 @@ const NAV = [
   { path: '/',          iconName: 'dashboard',   label: 'Dashboard',            exact: true },
   { path: '/projects',  iconName: 'folder',      label: 'Proyectos' },
   { path: '/contracts', iconName: 'description', label: 'Contratos & Proformas' },
+  { path: '/config',    iconName: 'settings',    label: 'Configuración' },
 ];
 
 function isActive(path, currentHash, exact) {
@@ -156,6 +158,7 @@ addRoute('/login',           () => renderLogin());
 addRoute('/projects',        () => renderProjects());
 addRoute('/projects/:id',    p  => renderProjectDetail(p));
 addRoute('/contracts',       () => renderContracts());
+addRoute('/config',          () => renderConfig());
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 window.addEventListener('hashchange', handleRoute);
