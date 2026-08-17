@@ -1,7 +1,8 @@
 import { api }                                         from '../api.js';
 import { toast, showModal, closeModal, pageHeader,
          projectStatusBadge, priorityBadge, projectTypeBadge, progressBar,
-         spinner, icon, fmtDateTime, isOverdue, overdueBadge } from '../utils.js';
+         spinner, icon, fmtDateTime, isOverdue, overdueBadge,
+         sanitizeRichText, richTextToolbar, wireRichEditor } from '../utils.js';
 
 let _projects = [], _users = [], _docTypes = [], _families = [], _filter = { status: '', search: '', family: '' };
 let _reqs = [], _reqProjectId = null;
@@ -358,15 +359,21 @@ function openModal(editing = null) {
         ${sectionTitle('Requerimientos')}
         <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Funcionales</p>
         <div id="req-list-functional" class="space-y-2 mb-2 max-h-40 overflow-y-auto pr-1">${editing ? spinnerSmall() : ''}</div>
-        <div class="flex gap-2 mb-5">
-          <input id="req-desc-functional" class="input text-xs flex-1" placeholder="Nuevo requerimiento...">
-          <button type="button" id="req-add-functional" class="btn-secondary text-xs px-3">${icon('add',16)}</button>
+        <div class="mb-2">
+          ${richTextToolbar('req-desc-functional')}
+          <div id="req-desc-functional" class="rte-input" contenteditable="true" data-placeholder="Nuevo requerimiento..." style="font-size:0.75rem;min-height:32px"></div>
+        </div>
+        <div class="flex justify-end mb-5">
+          <button type="button" id="req-add-functional" class="btn-secondary text-xs px-3">${icon('add',16)} Agregar</button>
         </div>
         <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">No Funcionales</p>
         <div id="req-list-nonfunctional" class="space-y-2 mb-2 max-h-40 overflow-y-auto pr-1"></div>
-        <div class="flex gap-2">
-          <input id="req-desc-nonfunctional" class="input text-xs flex-1" placeholder="Nuevo requerimiento...">
-          <button type="button" id="req-add-nonfunctional" class="btn-secondary text-xs px-3">${icon('add',16)}</button>
+        <div class="mb-2">
+          ${richTextToolbar('req-desc-nonfunctional')}
+          <div id="req-desc-nonfunctional" class="rte-input" contenteditable="true" data-placeholder="Nuevo requerimiento..." style="font-size:0.75rem;min-height:32px"></div>
+        </div>
+        <div class="flex justify-end">
+          <button type="button" id="req-add-nonfunctional" class="btn-secondary text-xs px-3">${icon('add',16)} Agregar</button>
         </div>
       </div>
     </div>
@@ -428,14 +435,10 @@ function openModal(editing = null) {
     _reqs = [];
     renderRequirementsList();
   }
+  wireRichEditor('req-desc-functional');
+  wireRichEditor('req-desc-nonfunctional');
   document.getElementById('req-add-functional').addEventListener('click', () => addRequirement('functional'));
-  document.getElementById('req-desc-functional').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); addRequirement('functional'); }
-  });
   document.getElementById('req-add-nonfunctional').addEventListener('click', () => addRequirement('non_functional'));
-  document.getElementById('req-desc-nonfunctional').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); addRequirement('non_functional'); }
-  });
 
   document.getElementById('project-form').addEventListener('submit', async e => {
     e.preventDefault();
@@ -493,7 +496,7 @@ function renderRequirementsList() {
 function reqRow(r) {
   return `
   <div class="flex items-start gap-2 p-2 rounded-lg border border-gray-100 bg-white">
-    <p class="flex-1 text-xs text-gray-700 whitespace-pre-wrap break-words">${esc(r.description)}</p>
+    <div class="flex-1 text-xs text-gray-700 break-words rte-display">${sanitizeRichText(r.description || '')}</div>
     <button type="button" class="req-del text-gray-300 hover:text-red-500 shrink-0" data-id="${r.id ?? r._localId}">${icon('delete',14)}</button>
   </div>`;
 }
@@ -501,8 +504,8 @@ function reqRow(r) {
 let _localReqSeq = 0;
 async function addRequirement(type) {
   const input = document.getElementById(type === 'non_functional' ? 'req-desc-nonfunctional' : 'req-desc-functional');
-  const description = input.value.trim();
-  if (!description) return;
+  if (!input.textContent.trim()) return;
+  const description = sanitizeRichText(input.innerHTML);
   if (_reqProjectId) {
     try {
       const r = await api.post('/requirements', { project_id: _reqProjectId, type, description });
@@ -511,7 +514,7 @@ async function addRequirement(type) {
   } else {
     _reqs.push({ _localId: `local-${++_localReqSeq}`, type, description });
   }
-  input.value = '';
+  input.innerHTML = '';
   renderRequirementsList();
 }
 
