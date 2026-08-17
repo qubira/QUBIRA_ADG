@@ -9,6 +9,7 @@ import { toast, showModal, closeModal,
 
 let _id, _project, _contracts, _documents, _messages, _emails, _activities, _requirements;
 let _tab = 'overview';
+let _editingReqId = null;
 let _scrumRoles = [], _scrumUsers = [];
 
 const SCRUM_ROLES = [['product_owner','Product Owner'],['scrum_master','Scrum Master'],['developer','Equipo de Desarrollo']];
@@ -21,6 +22,7 @@ const PRIORITY_LABEL_ES = { low:'Baja', medium:'Media', high:'Alta', urgent:'Urg
 export function render({ id }) {
   _id  = id;
   _tab = 'overview';
+  _editingReqId = null;
   const main = document.getElementById('main');
   main.innerHTML = `<div class="p-6 max-w-6xl mx-auto" id="pd-page">${spinner()}</div>`;
   loadAll();
@@ -126,6 +128,7 @@ function renderPage() {
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       _tab = btn.dataset.tab;
+      _editingReqId = null;
       document.querySelectorAll('.tab-btn').forEach(b => {
         b.className = `tab-btn px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
           ${b.dataset.tab===_tab ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`;
@@ -804,11 +807,24 @@ function requirementsColumn(label, items, type) {
 }
 
 function requirementRow(r) {
+  if (r.id === _editingReqId) {
+    const editId = `req-edit-${r.id}`;
+    return `
+    <div class="p-2.5 rounded-lg border border-primary-200 bg-primary-50/30">
+      ${richTextToolbar(editId)}
+      <div id="${editId}" class="rte-input" contenteditable="true" data-placeholder="Descripción...">${sanitizeRichText(r.description || '')}</div>
+      <div class="flex justify-end gap-2 mt-2">
+        <button type="button" class="btn-secondary text-xs px-2 py-1 req-edit-cancel" data-id="${r.id}">Cancelar</button>
+        <button type="button" class="btn-primary text-xs px-2 py-1 req-edit-save" data-id="${r.id}">Guardar</button>
+      </div>
+    </div>`;
+  }
   return `
   <div class="flex items-start gap-2 p-2.5 rounded-lg border border-gray-100">
     <div class="flex-1 text-sm text-gray-700 break-words rte-display">${sanitizeRichText(r.description || '')}</div>
     <input type="number" min="0" max="100" value="${r.progress ?? 0}" class="req-progress-input input text-xs text-center shrink-0" style="width:56px;padding:3px 4px" data-id="${r.id}">
     <span class="text-xs text-gray-400 shrink-0 mt-1.5">%</span>
+    <button class="req-edit-btn text-gray-300 hover:text-primary-600 shrink-0" data-id="${r.id}">${icon('edit',15)}</button>
     <button class="req-del-btn text-gray-300 hover:text-red-500 shrink-0" data-id="${r.id}">${icon('delete',16)}</button>
   </div>`;
 }
@@ -872,6 +888,38 @@ function wireRequirementsTab() {
       } catch (err) { toast(err.message || 'Error', 'error'); }
     });
   });
+
+  document.querySelectorAll('.req-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _editingReqId = btn.dataset.id;
+      renderTabContent();
+    });
+  });
+
+  document.querySelectorAll('.req-edit-cancel').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _editingReqId = null;
+      renderTabContent();
+    });
+  });
+
+  document.querySelectorAll('.req-edit-save').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const editId = `req-edit-${btn.dataset.id}`;
+      const el = document.getElementById(editId);
+      if (!el.textContent.trim()) return;
+      const description = sanitizeRichText(el.innerHTML);
+      try {
+        await api.put(`/requirements/${btn.dataset.id}`, { description });
+        const r = _requirements.find(x => x.id === btn.dataset.id);
+        if (r) r.description = description;
+        _editingReqId = null;
+        renderTabContent();
+      } catch (err) { toast(err.message || 'Error', 'error'); }
+    });
+  });
+
+  if (_editingReqId) wireRichEditor(`req-edit-${_editingReqId}`);
 }
 
 function contentSummaryBtn(iconName, colorCls, label, count, tabKey) {
