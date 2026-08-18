@@ -7,6 +7,7 @@ import { render as renderProjects }    from './pages/projects.js';
 import { render as renderProjectDetail } from './pages/project-detail.js';
 import { render as renderContracts }   from './pages/contracts.js';
 import { render as renderConfig }      from './pages/configuracion.js';
+import { render as renderCalendario }  from './pages/calendario.js';
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 const exactRoutes = {};
@@ -39,10 +40,11 @@ function matchRoute(hash) {
 let sidebarCollapsed = localStorage.getItem('sb') === '1';
 
 const NAV = [
-  { path: '/',          iconName: 'dashboard',   label: 'Dashboard',            exact: true },
-  { path: '/projects',  iconName: 'folder',      label: 'Proyectos' },
-  { path: '/contracts', iconName: 'description', label: 'Contratos & Proformas' },
-  { path: '/config',    iconName: 'settings',    label: 'Configuración' },
+  { path: '/',           iconName: 'dashboard',     label: 'Dashboard',            exact: true },
+  { path: '/projects',   iconName: 'folder',        label: 'Proyectos' },
+  { path: '/calendario', iconName: 'calendar_month', label: 'Calendario' },
+  { path: '/contracts',  iconName: 'description',   label: 'Contratos & Proformas' },
+  { path: '/config',     iconName: 'settings',      label: 'Configuración' },
 ];
 
 function isActive(path, currentHash, exact) {
@@ -157,6 +159,7 @@ addRoute('/',                () => renderDashboard());
 addRoute('/login',           () => renderLogin());
 addRoute('/projects',        () => renderProjects());
 addRoute('/projects/:id',    p  => renderProjectDetail(p));
+addRoute('/calendario',      () => renderCalendario());
 addRoute('/contracts',       () => renderContracts());
 addRoute('/config',          () => renderConfig());
 
