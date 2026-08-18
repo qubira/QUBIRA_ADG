@@ -88,8 +88,11 @@ function renderPage() {
     catch { toast('Error', 'error'); }
   }));
 
-  document.querySelectorAll('.preview-c-btn').forEach(btn => btn.addEventListener('click', () => {
-    previewFile(btn.dataset.url, btn.dataset.name);
+  document.querySelectorAll('.preview-c-btn').forEach(btn => btn.addEventListener('click', async () => {
+    try {
+      const { url } = await api.get(`/contracts/${btn.dataset.id}/file`);
+      previewFile(url, btn.dataset.name);
+    } catch (err) { toast(err.message || 'Error al abrir el archivo', 'error'); }
   }));
 }
 
@@ -111,7 +114,7 @@ function contractRow(c) {
     <td class="px-4 py-3 text-gray-500 text-xs">${fmtDate(c.signed_date||c.created_at)}</td>
     <td class="px-4 py-3 text-center">
       ${c.file_path
-        ? `<button class="preview-c-btn p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 inline-flex" data-url="${esc(c.file_path)}" data-name="${esc(c.file_name)}" title="${esc(c.file_name)}">${icon('visibility',18)}</button>`
+        ? `<button class="preview-c-btn p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 inline-flex" data-id="${c.id}" data-name="${esc(c.file_name)}" title="${esc(c.file_name)}">${icon('visibility',18)}</button>`
         : '<span class="text-gray-300">—</span>'}
     </td>
     <td class="px-4 py-3">

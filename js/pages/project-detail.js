@@ -284,7 +284,7 @@ function renderTabContent() {
               <p class="text-xs text-gray-500">${esc(ct.type)} · ${ct.amount > 0 ? '$'+Number(ct.amount).toLocaleString() : 'Sin monto'}</p>
             </div>
             ${contractStatusBadge(ct.status)}
-            ${ct.file_path ? `<button class="preview-file-btn p-1.5 rounded-lg hover:bg-gray-100 text-gray-400" data-url="${esc(ct.file_path)}" data-name="${esc(ct.file_name)}">${icon('visibility',18)}</button>` : ''}
+            ${ct.file_path ? `<button class="preview-file-btn p-1.5 rounded-lg hover:bg-gray-100 text-gray-400" data-type="contracts" data-id="${ct.id}" data-name="${esc(ct.file_name)}">${icon('visibility',18)}</button>` : ''}
           </div>`).join('')}
     </div>`;
     attachPreviewListeners(c);
@@ -303,7 +303,7 @@ function renderTabContent() {
               <p class="font-medium text-gray-900 text-sm">${esc(d.title)}</p>
               <p class="text-xs text-gray-500">${esc(d.category)} · ${esc(d.file_name||'Sin archivo')}</p>
             </div>
-            ${d.file_path ? `<button class="preview-file-btn btn-secondary text-xs py-1" data-url="${esc(d.file_path)}" data-name="${esc(d.file_name||d.title)}">${icon('visibility',14)} Ver</button>` : ''}
+            ${d.file_path ? `<button class="preview-file-btn btn-secondary text-xs py-1" data-type="documents" data-id="${d.id}" data-name="${esc(d.file_name||d.title)}">${icon('visibility',14)} Ver</button>` : ''}
           </div>`).join('')}
     </div>`;
     attachPreviewListeners(c);
@@ -1077,7 +1077,12 @@ function contentSummaryBtn(iconName, colorCls, label, count, tabKey) {
 
 function attachPreviewListeners(container) {
   container.querySelectorAll('.preview-file-btn').forEach(btn => {
-    btn.addEventListener('click', () => previewFile(btn.dataset.url, btn.dataset.name));
+    btn.addEventListener('click', async () => {
+      try {
+        const { url } = await api.get(`/${btn.dataset.type}/${btn.dataset.id}/file`);
+        previewFile(url, btn.dataset.name);
+      } catch (err) { toast(err.message || 'Error al abrir el archivo', 'error'); }
+    });
   });
 }
 
