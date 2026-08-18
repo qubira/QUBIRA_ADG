@@ -1,9 +1,9 @@
-import { api }      from '../api.js';
-import { toast }    from '../utils.js';
-import { navigate, normalizeUser } from '../state.js';
+import { api } from "../api.js";
+import { toast } from "../utils.js";
+import { navigate, normalizeUser } from "../state.js";
 
 export function render() {
-  const main = document.getElementById('main');
+  const main = document.getElementById("main");
   main.innerHTML = `
   <style>
     .qlogin-page { min-height: 100%; font-family: 'Inter', 'Segoe UI', sans-serif; background: #f3f4f6; color: #111827;
@@ -92,7 +92,7 @@ export function render() {
             <img class="qlogin-brand-logo" src="https://raw.githubusercontent.com/qubira/IMAGENES/main/logo2.png" alt="QUBIRA logo">
             <div class="qlogin-brand-name">
               <strong>QUBIRA</strong>
-              <span>Administración y Gestión</span>
+              <span>Alta Dirección Gerencial</span>
             </div>
           </div>
 
@@ -168,30 +168,32 @@ export function render() {
     </main>
   </div>`;
 
-  document.getElementById('toggle-pwd').addEventListener('click', () => {
-    const pwd = document.getElementById('password');
-    const toggle = document.getElementById('toggle-pwd');
-    const hidden = pwd.type === 'password';
-    pwd.type = hidden ? 'text' : 'password';
-    toggle.textContent = hidden ? 'OCULTAR' : 'VER';
+  document.getElementById("toggle-pwd").addEventListener("click", () => {
+    const pwd = document.getElementById("password");
+    const toggle = document.getElementById("toggle-pwd");
+    const hidden = pwd.type === "password";
+    pwd.type = hidden ? "text" : "password";
+    toggle.textContent = hidden ? "OCULTAR" : "VER";
   });
 
-  document.getElementById('login-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn = document.getElementById('submit-btn');
-    btn.disabled = true;
-    btn.textContent = 'Verificando...';
-    try {
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-      const data = await api.post('/auth/login', { username, password });
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user',  JSON.stringify(normalizeUser(data.user)));
-      navigate('/');
-    } catch (err) {
-      toast(err.message || 'Error al iniciar sesión', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Ingresar';
-    }
-  });
+  document
+    .getElementById("login-form")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("submit-btn");
+      btn.disabled = true;
+      btn.textContent = "Verificando...";
+      try {
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+        const data = await api.post("/auth/login", { username, password });
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(normalizeUser(data.user)));
+        navigate("/");
+      } catch (err) {
+        toast(err.message || "Error al iniciar sesión", "error");
+        btn.disabled = false;
+        btn.textContent = "Ingresar";
+      }
+    });
 }
