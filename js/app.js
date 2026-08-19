@@ -8,6 +8,7 @@ import { render as renderProjectDetail } from './pages/project-detail.js';
 import { render as renderContracts }   from './pages/contracts.js';
 import { render as renderConfig }      from './pages/configuracion.js';
 import { render as renderCalendario }  from './pages/calendario.js';
+import { render as renderAuditoria }   from './pages/auditoria.js';
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 const exactRoutes = {};
@@ -39,12 +40,20 @@ function matchRoute(hash) {
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 let sidebarCollapsed = localStorage.getItem('sb') === '1';
 
+const QUALIFYING_AUDIT_CARGOS = ['SUPERVISOR', 'COORDINADOR', 'GERENTE'];
+function canViewAudit(user) {
+  if (!user) return false;
+  if ((user.nivel_acceso || 0) >= 100) return true;
+  return QUALIFYING_AUDIT_CARGOS.includes(String(user.cargo || '').toUpperCase());
+}
+
 const NAV = [
   { path: '/',           iconName: 'dashboard',     label: 'Dashboard',            exact: true },
   { path: '/projects',   iconName: 'folder',        label: 'Proyectos' },
   { path: '/calendario', iconName: 'calendar_month', label: 'Calendario' },
   { path: '/contracts',  iconName: 'description',   label: 'Contratos & Proformas' },
   { path: '/config',     iconName: 'settings',      label: 'Configuración' },
+  { path: '/auditoria',  iconName: 'fact_check',    label: 'Auditoría',  visible: canViewAudit },
 ];
 
 function isActive(path, currentHash, exact) {
@@ -86,7 +95,7 @@ function renderSidebar(currentHash) {
     <!-- Nav -->
     <nav class="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
       ${!collapsed ? '<p class="text-xs font-semibold text-gray-600 uppercase tracking-wider px-3 mb-2">Principal</p>' : ''}
-      ${NAV.map(n => navLink(n, currentHash)).join('')}
+      ${NAV.filter(n => !n.visible || n.visible(user)).map(n => navLink(n, currentHash)).join('')}
     </nav>
 
     <!-- User -->
@@ -160,6 +169,7 @@ addRoute('/login',           () => renderLogin());
 addRoute('/projects',        () => renderProjects());
 addRoute('/projects/:id',    p  => renderProjectDetail(p));
 addRoute('/calendario',      () => renderCalendario());
+addRoute('/auditoria',       () => renderAuditoria());
 addRoute('/contracts',       () => renderContracts());
 addRoute('/config',          () => renderConfig());
 
