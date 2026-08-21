@@ -23,9 +23,6 @@ document.addEventListener('click', e => {
   document.querySelectorAll('.tech-dropdown:not(.hidden)').forEach(dd => {
     if (!dd.closest('[data-tech-wrap]')?.contains(e.target)) dd.classList.add('hidden');
   });
-  document.querySelectorAll('.tech-chip-menu:not(.hidden)').forEach(dd => {
-    if (!dd.closest('[data-tech-chip-wrap]')?.contains(e.target)) dd.classList.add('hidden');
-  });
 });
 let _meetings = [];
 let _meetingPool = [];
@@ -1195,14 +1192,10 @@ function techChip(t) {
     ? `<img src="${t.image_url}" class="w-4 h-4 rounded object-cover" alt="">`
     : `<span class="w-4 h-4 rounded bg-indigo-200 flex items-center justify-center text-[9px] font-bold text-indigo-700">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
   return `
-  <span class="relative inline-flex items-center gap-1.5 pl-2 pr-1 py-1.5 rounded-full bg-indigo-50 text-indigo-700 text-sm font-medium" data-tech-chip-wrap>
+  <span class="inline-flex items-center gap-1.5 pl-2 pr-1.5 py-1.5 rounded-full bg-indigo-50 text-indigo-700 text-sm font-medium">
     ${avatar}
     <span>${esc(t.name)}</span>
-    <button type="button" class="tech-chip-menu-btn text-indigo-300 hover:text-indigo-600 rounded-full flex items-center justify-center" data-id="${t.id}" title="Opciones">${icon('expand_more',16)}</button>
-    <div class="tech-chip-menu hidden absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1 w-32">
-      <button type="button" class="tech-chip-edit w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 text-left" data-id="${t.id}">${icon('edit',13)} Editar</button>
-      <button type="button" class="tech-chip-delete w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 text-left" data-id="${t.id}">${icon('delete',13)} Eliminar</button>
-    </div>
+    <button type="button" class="tech-del-btn text-indigo-300 hover:text-red-500 rounded-full flex items-center justify-center" data-id="${t.id}" title="Quitar">${icon('close',14)}</button>
   </span>`;
 }
 
@@ -1285,120 +1278,14 @@ function wireTechnologies() {
     });
   });
 
-  document.querySelectorAll('.tech-chip-menu-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const menu = btn.nextElementSibling;
-      const wasHidden = menu.classList.contains('hidden');
-      document.querySelectorAll('.tech-chip-menu').forEach(m => m.classList.add('hidden'));
-      if (wasHidden) menu.classList.remove('hidden');
-    });
-  });
-
-  document.querySelectorAll('.tech-chip-edit').forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.closest('.tech-chip-menu').classList.add('hidden');
-      const current = _technologies.find(t => t.id === btn.dataset.id);
-      if (current) openTechEditModal(current);
-    });
-  });
-
-  document.querySelectorAll('.tech-chip-delete').forEach(btn => {
+  document.querySelectorAll('.tech-del-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      btn.closest('.tech-chip-menu').classList.add('hidden');
-      const current = _technologies.find(t => t.id === btn.dataset.id);
-      if (!current) return;
-      if (!(await confirmModal(`¿Quitar "${esc(current.name)}" de este proyecto?`, { confirmLabel: 'Quitar' }))) return;
       try {
         await api.delete(`/technologies/${btn.dataset.id}`);
         _technologies = _technologies.filter(t => t.id !== btn.dataset.id);
         renderTechnologies();
       } catch (err) { toast(err.message || 'Error', 'error'); }
     });
-  });
-}
-
-function openTechEditModal(t) {
-  let pendingFile = null;
-  let clearedImage = false;
-
-  const modal = showModal('Editar tecnología', `
-    <div class="flex flex-col items-center gap-3 mb-4">
-      <div id="tech-edit-dropzone" class="relative w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary-400 hover:bg-primary-50/40 transition-colors">
-        <img id="tech-edit-preview" src="${esc(t.image_url || '')}" class="absolute inset-0 w-full h-full object-cover bg-white ${t.image_url ? '' : 'hidden'}">
-        <span id="tech-edit-placeholder" class="text-gray-300 ${t.image_url ? 'hidden' : ''}">${icon('add_photo_alternate', 24)}</span>
-        <input type="file" id="tech-edit-file" accept="image/*" class="hidden">
-      </div>
-      <div class="flex items-center gap-2">
-        <input type="text" id="tech-edit-url" placeholder="o pega una URL de imagen" class="input text-xs py-1.5" value="${esc(t.image_url || '')}">
-        <button type="button" id="tech-edit-remove-img" class="btn-secondary text-xs px-2 py-1.5">Quitar</button>
-      </div>
-    </div>
-    <label class="label">Nombre</label>
-    <input type="text" id="tech-edit-name" class="input" value="${esc(t.name)}">
-  `, 'sm', `
-    <div class="flex justify-end gap-3">
-      <button type="button" id="tech-edit-cancel" class="btn-secondary">Cancelar</button>
-      <button type="button" id="tech-edit-save" class="btn-primary">Guardar</button>
-    </div>
-  `);
-
-  const dropzone = document.getElementById('tech-edit-dropzone');
-  const fileInput = document.getElementById('tech-edit-file');
-  const preview = document.getElementById('tech-edit-preview');
-  const placeholder = document.getElementById('tech-edit-placeholder');
-  const urlInput = document.getElementById('tech-edit-url');
-
-  dropzone.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files[0];
-    if (!file) return;
-    pendingFile = file;
-    clearedImage = false;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      preview.src = ev.target.result;
-      preview.classList.remove('hidden');
-      placeholder.classList.add('hidden');
-    };
-    reader.readAsDataURL(file);
-    urlInput.value = '';
-  });
-  urlInput.addEventListener('input', () => {
-    pendingFile = null;
-    const url = urlInput.value.trim();
-    clearedImage = !url;
-    if (url) { preview.src = url; preview.classList.remove('hidden'); placeholder.classList.add('hidden'); }
-    else { preview.classList.add('hidden'); placeholder.classList.remove('hidden'); }
-  });
-  document.getElementById('tech-edit-remove-img').addEventListener('click', () => {
-    pendingFile = null;
-    clearedImage = true;
-    urlInput.value = '';
-    preview.classList.add('hidden');
-    placeholder.classList.remove('hidden');
-  });
-
-  document.getElementById('tech-edit-cancel').addEventListener('click', closeModal);
-  document.getElementById('tech-edit-save').addEventListener('click', async () => {
-    const name = document.getElementById('tech-edit-name').value.trim();
-    if (!name) { toast('El nombre es requerido', 'error'); return; }
-    try {
-      if (pendingFile) {
-        const fd = new FormData();
-        fd.append('name', name);
-        fd.append('image', pendingFile);
-        await api.put(`/technologies/${t.id}`, fd);
-      } else {
-        const body = { name };
-        if (clearedImage) body.image_url = '';
-        else if (urlInput.value.trim() && urlInput.value.trim() !== (t.image_url || '')) body.image_url = urlInput.value.trim();
-        await api.put(`/technologies/${t.id}`, body);
-      }
-      closeModal();
-      toast('Tecnología actualizada');
-      await loadTechnologies();
-    } catch (err) { toast(err.message || 'Error', 'error'); }
   });
 }
 
