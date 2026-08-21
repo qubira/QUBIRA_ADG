@@ -81,9 +81,6 @@ function renderPage() {
   if (!container) return;
   const p = _project;
 
-  const daysLeft = p.status === 'observed' && p.observation_deadline
-    ? Math.ceil((new Date(p.observation_deadline) - new Date()) / 86400000) : null;
-
   container.innerHTML = `
   <!-- Header -->
   <div class="flex items-start gap-4 mb-6">
@@ -99,12 +96,8 @@ function renderPage() {
         ${projectStatusBadge(p.status)}
         ${priorityBadge(p.priority)}
         ${isOverdue(p) ? overdueBadge() : ''}
-        ${daysLeft !== null ? `<span class="badge ${daysLeft <= 3 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'} inline-flex items-center gap-1">${icon('schedule', 12)} ${daysLeft > 0 ? `${daysLeft} día${daysLeft === 1 ? '' : 's'} para subsanar` : 'Plazo vencido'}</span>` : ''}
       </div>
       <p class="text-gray-500 mt-1">${esc(p.code)} · ${esc(p.client)}</p>
-      ${p.origin_area && p.origin_area !== 'ADG' ? `
-        <p class="text-xs text-gray-400 mt-1 inline-flex items-center gap-1">${icon('call_made', 12)} Enviado por <strong class="text-gray-600">${esc(p.origin_area)}</strong> · ${esc(p.created_by_name || 'usuario eliminado')}</p>
-      ` : ''}
     </div>
     <button id="export-pdf-btn" class="btn-secondary">${icon('picture_as_pdf', 16)} Exportar PDF</button>
     ${p.website_url ? `<a href="${esc(p.website_url)}" target="_blank" rel="noopener" class="btn-secondary">${icon('open_in_new', 16)} Ver página</a>` : ''}
@@ -113,14 +106,9 @@ function renderPage() {
     ` : `
       <button id="edit-btn" class="btn-secondary">${icon('edit', 16)} Editar</button>
     `}
-    ${p.status === 'pending_approval' ? `
-      <button id="observe-btn" class="btn-secondary text-red-600">${icon('flag', 16)} Observar</button>
-      <button id="approve-request-btn" class="btn-primary">${icon('check', 16)} Aprobar</button>
-    ` : ''}
-    ${p.status === 'finished_by_ti' ? `
-      <button id="observe-closure-btn" class="btn-secondary text-red-600">${icon('flag', 16)} Observar cierre</button>
-      <button id="approve-btn" class="btn-primary">${icon('task_alt', 16)} Aprobar y completar</button>
-    ` : ''}
+    ${p.status === 'finished_by_ti'
+      ? `<button id="approve-btn" class="btn-primary">${icon('task_alt', 16)} Aprobar y completar</button>`
+      : ''}
     ${p.status === 'pending'
       ? `<span class="text-sm text-yellow-700 flex items-center gap-1.5">${icon('hourglass_empty', 16)} Esperando que TI lo reclame</span>`
       : ''}
@@ -140,15 +128,12 @@ function renderPage() {
   <!-- Tabs -->
   <div class="border-b border-gray-200 mb-5">
     <div class="flex gap-1 overflow-x-auto" id="tabs">
-      ${(() => {
-        const tabs = ['overview','github','scrum','schedule','technologies','requirements','contracts','documents','whatsapp','emails','activity'];
+      ${['overview','github','scrum','schedule','technologies','requirements','contracts','documents','whatsapp','emails','activity'].map((t,i) => {
         const labels = ['Resumen','GitHub','Scrum','Cronograma','Tecnologías',`Requisitos (${_requirements.length})`,`Contratos (${_contracts.length})`,`Documentos (${_documents.length})`,
                         `WhatsApp (${_messages.length})`,`Correos (${_emails.length})`,'Actividad'];
-        if (p.status === 'observed') { tabs.push('observations'); labels.push('Observaciones'); }
-        return tabs.map((t,i) => `<button data-tab="${t}" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-          ${t === 'observations' ? (_tab===t ? 'border-red-600 text-red-700' : 'border-transparent text-red-500 hover:text-red-700') :
-            (_tab===t ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700')}">${labels[i]}</button>`).join('');
-      })()}
+        return `<button data-tab="${t}" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+          ${_tab===t ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}">${labels[i]}</button>`;
+      }).join('')}
     </div>
   </div>
 
@@ -166,16 +151,6 @@ function renderPage() {
       loadAll();
     } catch (err) { toast(err.message || 'Error', 'error'); }
   });
-  document.getElementById('approve-request-btn')?.addEventListener('click', async () => {
-    if (!confirm('¿Aprobar esta solicitud? Va a quedar disponible para que TI la reclame.')) return;
-    try {
-      await api.post(`/projects/${_id}/approve`, {});
-      toast('Solicitud aprobada');
-      loadAll();
-    } catch (err) { toast(err.message || 'Error', 'error'); }
-  });
-  document.getElementById('observe-btn')?.addEventListener('click', () => openObserveModal('El área de origen tendrá 15 días para corregir y reenviar la solicitud.'));
-  document.getElementById('observe-closure-btn')?.addEventListener('click', () => openObserveModal('El proyecto vuelve a quedar activo para que TI lo siga trabajando.'));
 
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -190,30 +165,6 @@ function renderPage() {
   });
 
   renderTabContent();
-}
-
-function openObserveModal(hint) {
-  showModal('Observar proyecto', `
-    <p class="text-sm text-gray-500 mb-3">${esc(hint)}</p>
-    <label class="text-xs font-medium text-gray-600 mb-1 block">Motivo de la observación *</label>
-    <textarea id="observe-reason" rows="4" class="input w-full" placeholder="Qué hay que corregir..."></textarea>
-  `, 'md', `
-    <div class="flex justify-end gap-2">
-      <button id="observe-cancel" class="btn-secondary">Cancelar</button>
-      <button id="observe-confirm" class="btn-primary bg-red-600 hover:bg-red-700">${icon('flag', 16)} Observar</button>
-    </div>
-  `);
-  document.getElementById('observe-cancel').addEventListener('click', closeModal);
-  document.getElementById('observe-confirm').addEventListener('click', async () => {
-    const reason = document.getElementById('observe-reason').value.trim();
-    if (!reason) { toast('Escribe el motivo de la observación', 'error'); return; }
-    try {
-      await api.post(`/projects/${_id}/observe`, { reason });
-      closeModal();
-      toast('Proyecto observado');
-      loadAll();
-    } catch (err) { toast(err.message || 'Error', 'error'); }
-  });
 }
 
 function renderTabContent() {
@@ -428,23 +379,6 @@ function renderTabContent() {
 
   if (_tab === 'activity') {
     c.innerHTML = `<div class="card p-5">${historyTimeline(_activities)}</div>`;
-  }
-
-  if (_tab === 'observations') {
-    const deadline = p.observation_deadline ? new Date(p.observation_deadline) : null;
-    const daysLeft = deadline ? Math.ceil((deadline - new Date()) / 86400000) : null;
-    c.innerHTML = `
-    <div class="card p-5 bg-red-50 border border-red-200">
-      <div class="flex items-center gap-2 mb-3">
-        ${icon('flag', 18)}
-        <h3 class="font-semibold text-red-800">Observación pendiente de ${esc(p.origin_area || 'la solicitud')}</h3>
-      </div>
-      <p class="text-sm text-red-900 whitespace-pre-wrap mb-4">${esc(p.observation_reason || 'Sin motivo registrado')}</p>
-      <div class="flex flex-wrap gap-4 text-xs text-red-700">
-        <span>Observado el ${fmtDateTime(p.observed_at)}</span>
-        ${deadline ? `<span class="font-semibold">${daysLeft > 0 ? `${daysLeft} día${daysLeft === 1 ? '' : 's'} restantes para reenviar` : 'Plazo vencido — se archivará automáticamente'}</span>` : ''}
-      </div>
-    </div>`;
   }
 }
 

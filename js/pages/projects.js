@@ -51,8 +51,6 @@ function renderPage() {
       </div>
       <select id="status-filter" class="input w-auto">
         <option value="">Todos los estados</option>
-        <option value="pending_approval" ${_filter.status==='pending_approval'?'selected':''}>Por aprobar</option>
-        <option value="observed"       ${_filter.status==='observed'      ?'selected':''}>Observados</option>
         <option value="pending"        ${_filter.status==='pending'       ?'selected':''}>Pendientes (sin reclamar)</option>
         <option value="active"         ${_filter.status==='active'        ?'selected':''}>Activos</option>
         <option value="paused"         ${_filter.status==='paused'        ?'selected':''}>Pausados</option>
@@ -66,9 +64,6 @@ function renderPage() {
       </select>
       <button id="group-family-btn" class="btn-secondary ${_groupByFamily ? 'bg-primary-50 text-primary-700 border-primary-200' : ''}">
         ${icon('workspaces', 18)} Agrupar por familia
-      </button>
-      <button id="archived-btn" class="btn-secondary ${_filter.status==='archived' ? 'bg-gray-200 text-gray-800' : ''}">
-        ${icon('archive', 18)} Proyectos Archivados
       </button>
     </div>
 
@@ -92,10 +87,6 @@ function renderPage() {
   document.getElementById('group-family-btn').addEventListener('click', () => {
     _groupByFamily = !_groupByFamily;
     renderPage();
-  });
-  document.getElementById('archived-btn').addEventListener('click', () => {
-    _filter.status = _filter.status === 'archived' ? '' : 'archived';
-    load();
   });
 
   document.querySelectorAll('.edit-btn').forEach(btn => {
@@ -184,14 +175,6 @@ function renderProjectsSection() {
   return html;
 }
 
-function observationDaysBadge(p) {
-  if (p.status !== 'observed' || !p.observation_deadline) return '';
-  const daysLeft = Math.ceil((new Date(p.observation_deadline) - new Date()) / 86400000);
-  return `<span class="badge ${daysLeft <= 3 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'} inline-flex items-center gap-1">
-    ${icon('schedule', 12)} ${daysLeft > 0 ? `${daysLeft} día${daysLeft === 1 ? '' : 's'}` : 'Vencido'}
-  </span>`;
-}
-
 function projectCard(p) {
   const overdue = isOverdue(p);
   return `
@@ -226,9 +209,7 @@ function projectCard(p) {
       ${priorityBadge(p.priority)}
       ${projectTypeBadge(p.project_type)}
       ${overdue ? overdueBadge() : ''}
-      ${observationDaysBadge(p)}
     </div>
-    ${p.origin_area && p.origin_area !== 'ADG' ? `<div class="mb-2 -mt-1 text-xs text-gray-400 flex items-center gap-1">${icon('call_made', 12)} Enviado por <strong class="text-gray-600">${esc(p.origin_area)}</strong> · ${esc(p.created_by_name || 'usuario eliminado')}</div>` : ''}
     ${p.family ? `<div class="mb-3 -mt-1"><span class="badge bg-pink-50 text-pink-700 inline-flex items-center gap-1">${icon('workspaces', 12)} ${esc(p.family)}</span></div>` : ''}
     <div class="mb-3">
       <div class="flex justify-between text-xs text-gray-500 mb-1">
@@ -636,16 +617,9 @@ function statusOpts(current) {
   // "Completado" solo se aprueba desde la ficha del proyecto (cuando TI ya
   // lo marcó finalizado) — se deja como opción solo si el proyecto ya
   // está en ese estado, para no perderlo si se guarda sin tocar el campo.
-  // pending_approval/observed también quedan solo como su propio valor
-  // actual (nunca elegibles desde otro estado) — cambiarlos es cosa de
-  // los botones Aprobar/Observar/Reenviar, no de este formulario; el
-  // backend igual lo rechaza, pero así ni siquiera se puede intentar
-  // por accidente con el valor que el <select> deja marcado por defecto.
   const opts = [['pending','Pendiente'],['active','Activo'],['paused','Pausado'],['cancelled','Cancelado']];
   if (current === 'finished_by_ti') opts.push(['finished_by_ti', 'Finalizado (por revisar)']);
   if (current === 'completed') opts.push(['completed', 'Completado']);
-  if (current === 'pending_approval') opts.push(['pending_approval', 'Por aprobar']);
-  if (current === 'observed') opts.push(['observed', 'Observado']);
   return opts.map(([v,l]) => `<option value="${v}" ${current===v?'selected':''}>${l}</option>`).join('');
 }
 
