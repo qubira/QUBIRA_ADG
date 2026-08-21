@@ -287,6 +287,12 @@ function renderTabContent() {
   }
 
   if (_tab === 'requirements') {
+    /* Agregar/editar/eliminar un requerimiento reconstruye este tab
+       entero (rehace las dos columnas) — sin esto, cada acción hacía
+       perder el scroll de la lista y te mandaba de vuelta arriba. */
+    const scrollF  = document.getElementById('req-col-functional')?.scrollTop;
+    const scrollNF = document.getElementById('req-col-non_functional')?.scrollTop;
+
     const functional    = _requirements.filter(r => r.type !== 'non_functional');
     const nonFunctional = _requirements.filter(r => r.type === 'non_functional');
     c.innerHTML = `
@@ -295,6 +301,9 @@ function renderTabContent() {
       ${requirementsColumn('No Funcionales', nonFunctional, 'non_functional')}
     </div>`;
     wireRequirementsTab();
+
+    if (scrollF)  { const el = document.getElementById('req-col-functional');     if (el) el.scrollTop = scrollF; }
+    if (scrollNF) { const el = document.getElementById('req-col-non_functional'); if (el) el.scrollTop = scrollNF; }
   }
 
   if (_tab === 'contracts') {
