@@ -1,5 +1,5 @@
 import { api }                                         from '../api.js';
-import { toast, showModal, closeModal, pageHeader,
+import { toast, showModal, closeModal, confirmModal, pageHeader,
          contractStatusBadge, fmtDate, spinner, icon,
          previewFile }                                 from '../utils.js';
 
@@ -83,7 +83,7 @@ function renderPage() {
   }));
   document.querySelectorAll('.del-c').forEach(btn => btn.addEventListener('click', async () => {
     const ct = _contracts.find(x => String(x.id) === btn.dataset.id);
-    if (!ct || !confirm(`¿Eliminar "${ct.title}"?`)) return;
+    if (!ct || !(await confirmModal(`¿Eliminar "${ct.title}"?`))) return;
     try { await api.delete(`/contracts/${ct.id}`); toast('Eliminado'); load(); }
     catch { toast('Error', 'error'); }
   }));

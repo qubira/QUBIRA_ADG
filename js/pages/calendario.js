@@ -1,6 +1,6 @@
 import { api }        from '../api.js';
 import { getUser }    from '../state.js';
-import { toast, showModal, closeModal, pageHeader, spinner, icon } from '../utils.js';
+import { toast, showModal, closeModal, confirmModal, pageHeader, spinner, icon } from '../utils.js';
 
 const OWN_AREA = 'ADG';
 const AREAS = [['ADG','ADG'],['TI','TI'],['RRHH','RR. HH.'],['SOPORTE','Soporte']];
@@ -469,7 +469,7 @@ function editMeeting(id) {
 
 async function cancelMeeting(id) {
   const m = _meetings.find(x => x.id === id);
-  if (!m || !confirm(`¿Deseas cancelar la reunión "${m.title}"? Se liberará el horario de los participantes.`)) return;
+  if (!m || !(await confirmModal(`¿Deseas cancelar la reunión "${m.title}"? Se liberará el horario de los participantes.`, { title: 'Cancelar reunión', confirmLabel: 'Sí, cancelar' }))) return;
   try {
     await api.post(`/calendar/meetings/${id}/cancel`);
     toast('Reunión cancelada');
@@ -479,7 +479,7 @@ async function cancelMeeting(id) {
 
 async function deleteMeeting(id) {
   const m = _meetings.find(x => x.id === id);
-  if (!m || !confirm(`¿Deseas eliminar la reunión "${m.title}"? Esta acción no se puede deshacer.`)) return;
+  if (!m || !(await confirmModal(`¿Deseas eliminar la reunión "${m.title}"? Esta acción no se puede deshacer.`))) return;
   try {
     await api.delete(`/calendar/meetings/${id}`);
     toast('Reunión eliminada');

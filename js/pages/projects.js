@@ -1,5 +1,5 @@
 import { api }                                         from '../api.js';
-import { toast, showModal, closeModal, pageHeader,
+import { toast, showModal, closeModal, confirmModal, pageHeader,
          projectStatusBadge, priorityBadge, projectTypeBadge, progressBar,
          spinner, icon, fmtDateTime, isOverdue, overdueBadge,
          sanitizeRichText, richTextToolbar, wireRichEditor } from '../utils.js';
@@ -113,7 +113,7 @@ function renderPage() {
       const id = btn.dataset.id;
       const p = _projects.find(x => String(x.id) === id);
       if (!p) return;
-      if (!confirm(`¿Eliminar el proyecto "${p.name}"? Esta acción no se puede deshacer.`)) return;
+      if (!(await confirmModal(`¿Eliminar el proyecto "${esc(p.name)}"? Esta acción no se puede deshacer.`))) return;
       try {
         await api.delete(`/projects/${id}`);
         toast('Proyecto eliminado');

@@ -229,6 +229,25 @@ export function closeModal() {
   document.getElementById('modal-container').innerHTML = '';
 }
 
+// ─── Confirmación (reemplaza al confirm() nativo del navegador) ───────────────
+export function confirmModal(message, { title = 'Confirmar acción', confirmLabel = 'Eliminar', danger = true } = {}) {
+  return new Promise(resolve => {
+    showModal(title, `<p class="text-sm text-gray-600">${message}</p>`, 'sm', `
+      <div class="flex justify-end gap-3">
+        <button id="confirm-modal-cancel" class="btn-secondary">Cancelar</button>
+        <button id="confirm-modal-ok" class="btn-primary ${danger ? 'bg-red-600 hover:bg-red-700' : ''}">${confirmLabel}</button>
+      </div>
+    `);
+    const finish = result => { closeModal(); resolve(result); };
+    document.getElementById('confirm-modal-cancel').addEventListener('click', () => finish(false));
+    document.getElementById('confirm-modal-ok').addEventListener('click', () => finish(true));
+    const overlay = document.getElementById('modal-overlay');
+    const closeBtn = document.getElementById('modal-close-btn');
+    overlay.addEventListener('click', e => { if (e.target.id === 'modal-overlay') resolve(false); });
+    closeBtn.addEventListener('click', () => resolve(false));
+  });
+}
+
 // ─── Vista previa de archivos (sin descargar) ──────────────────────────────────
 export function previewFile(url, filename) {
   const safeName = (filename || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');

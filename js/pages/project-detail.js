@@ -1,6 +1,6 @@
 import { api }                                        from '../api.js';
 import { navigate }                                   from '../state.js';
-import { toast, showModal, closeModal,
+import { toast, showModal, closeModal, confirmModal,
          projectStatusBadge, priorityBadge,
          contractStatusBadge, fmtDate, fmtDateTime,
          fmtRelative, fmtMoney, spinner, icon,
@@ -144,7 +144,7 @@ function renderPage() {
   document.getElementById('export-pdf-btn').addEventListener('click', exportToPDF);
   document.getElementById('edit-btn')?.addEventListener('click', () => openEditModal());
   document.getElementById('approve-btn')?.addEventListener('click', async () => {
-    if (!confirm('¿Aprobar y dar por completado este proyecto? TI ya no va a poder editarlo después de esto.')) return;
+    if (!(await confirmModal('¿Aprobar y dar por completado este proyecto? TI ya no va a poder editarlo después de esto.', { danger: false, confirmLabel: 'Aprobar' }))) return;
     try {
       await api.put(`/projects/${_id}`, { status: 'completed' });
       toast('Proyecto aprobado y completado');
@@ -1089,7 +1089,7 @@ function editMeeting(id) {
 
 async function deleteMeeting(id) {
   const m = _meetings.find(x => x.id === id);
-  if (!m || !confirm(`¿Deseas eliminar la reunión "${m.title}"? Esta acción no se puede deshacer.`)) return;
+  if (!m || !(await confirmModal(`¿Deseas eliminar la reunión "${esc(m.title)}"? Esta acción no se puede deshacer.`))) return;
   try {
     await api.delete(`/calendar/meetings/${id}`);
     toast('Reunión eliminada');

@@ -1,5 +1,5 @@
 import { api }      from '../api.js';
-import { toast, pageHeader, spinner, icon } from '../utils.js';
+import { toast, confirmModal, pageHeader, spinner, icon } from '../utils.js';
 
 let _docTypes = [];
 
@@ -95,7 +95,7 @@ async function editDocType(id, current) {
 }
 
 async function deleteDocType(id, label) {
-  if (!confirm(`¿Eliminar el tipo de documento "${label}"? Los proyectos que ya lo usan no se ven afectados.`)) return;
+  if (!(await confirmModal(`¿Eliminar el tipo de documento "${label}"? Los proyectos que ya lo usan no se ven afectados.`))) return;
   try {
     await api.delete(`/document-types/${id}`);
     toast('Tipo de documento eliminado');
