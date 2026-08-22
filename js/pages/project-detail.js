@@ -1518,7 +1518,7 @@ function requirementRow(r, index, total) {
       <button type="button" class="req-move-up rounded text-gray-300 hover:text-primary-600 disabled:opacity-25 disabled:pointer-events-none" data-id="${r.id}" ${index === 0 ? 'disabled' : ''} title="Subir">${icon('keyboard_arrow_up',16)}</button>
       <button type="button" class="req-move-down rounded text-gray-300 hover:text-primary-600 disabled:opacity-25 disabled:pointer-events-none" data-id="${r.id}" ${index === total - 1 ? 'disabled' : ''} title="Bajar">${icon('keyboard_arrow_down',16)}</button>
     </div>
-    <div class="flex-1 text-sm text-gray-700 break-words rte-display"><span class="font-semibold text-gray-400 mr-1.5">${label}.</span>${sanitizeRichText(r.description || '')}</div>
+    <div class="flex-1 min-w-0 text-sm text-gray-700 break-words rte-display"><span class="font-semibold text-gray-400 mr-1.5">${label}.</span>${sanitizeRichText(r.description || '')}</div>
     <input type="number" min="0" max="100" value="${r.progress ?? 0}" class="req-progress-input input text-xs text-center shrink-0" style="width:56px;padding:3px 4px" data-id="${r.id}">
     <span class="text-xs text-gray-400 shrink-0 mt-1.5">%</span>
     <button class="req-edit-btn text-gray-300 hover:text-primary-600 shrink-0" data-id="${r.id}">${icon('edit',15)}</button>

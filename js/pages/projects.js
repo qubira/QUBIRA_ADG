@@ -541,7 +541,7 @@ function renderRequirementsList() {
 function reqRow(r) {
   return `
   <div class="flex items-start gap-2 p-2 rounded-lg border border-gray-100 bg-white">
-    <div class="flex-1 text-xs text-gray-700 break-words rte-display">${sanitizeRichText(r.description || '')}</div>
+    <div class="flex-1 min-w-0 text-xs text-gray-700 break-words rte-display">${sanitizeRichText(r.description || '')}</div>
     <button type="button" class="req-del text-gray-300 hover:text-red-500 shrink-0" data-id="${r.id ?? r._localId}">${icon('delete',14)}</button>
   </div>`;
 }
