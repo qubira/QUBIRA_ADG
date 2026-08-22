@@ -1481,7 +1481,7 @@ function requirementsColumn(label, items, type) {
     <div class="space-y-2 max-h-96 overflow-y-auto pr-1 mb-3" id="req-col-${type}">
       ${items.length === 0
         ? '<p class="text-xs text-gray-400 py-2 text-center">Sin requerimientos registrados</p>'
-        : items.map(requirementRow).join('')}
+        : items.map((r, i) => requirementRow(r, i, items.length)).join('')}
     </div>
     <div>
       ${richTextToolbar(inputId)}
@@ -1493,11 +1493,17 @@ function requirementsColumn(label, items, type) {
   </div>`;
 }
 
-function requirementRow(r) {
+function reqLabel(r, index) {
+  return `${r.type === 'non_functional' ? 'RNF' : 'RF'}${index + 1}`;
+}
+
+function requirementRow(r, index, total) {
+  const label = reqLabel(r, index);
   if (r.id === _editingReqId) {
     const editId = `req-edit-${r.id}`;
     return `
     <div class="p-2.5 rounded-lg border border-primary-200 bg-primary-50/30">
+      <p class="text-xs font-semibold text-gray-400 mb-1">${label}</p>
       ${richTextToolbar(editId)}
       <div id="${editId}" class="rte-input" contenteditable="true" data-placeholder="Descripción...">${sanitizeRichText(r.description || '')}</div>
       <div class="flex justify-end gap-2 mt-2">
@@ -1508,12 +1514,24 @@ function requirementRow(r) {
   }
   return `
   <div class="flex items-start gap-2 p-2.5 rounded-lg border border-gray-100">
-    <div class="flex-1 text-sm text-gray-700 break-words rte-display">${sanitizeRichText(r.description || '')}</div>
+    <div class="flex flex-col shrink-0 -my-0.5">
+      <button type="button" class="req-move-up rounded text-gray-300 hover:text-primary-600 disabled:opacity-25 disabled:pointer-events-none" data-id="${r.id}" ${index === 0 ? 'disabled' : ''} title="Subir">${icon('keyboard_arrow_up',16)}</button>
+      <button type="button" class="req-move-down rounded text-gray-300 hover:text-primary-600 disabled:opacity-25 disabled:pointer-events-none" data-id="${r.id}" ${index === total - 1 ? 'disabled' : ''} title="Bajar">${icon('keyboard_arrow_down',16)}</button>
+    </div>
+    <div class="flex-1 text-sm text-gray-700 break-words rte-display"><span class="font-semibold text-gray-400 mr-1.5">${label}.</span>${sanitizeRichText(r.description || '')}</div>
     <input type="number" min="0" max="100" value="${r.progress ?? 0}" class="req-progress-input input text-xs text-center shrink-0" style="width:56px;padding:3px 4px" data-id="${r.id}">
     <span class="text-xs text-gray-400 shrink-0 mt-1.5">%</span>
     <button class="req-edit-btn text-gray-300 hover:text-primary-600 shrink-0" data-id="${r.id}">${icon('edit',15)}</button>
     <button class="req-del-btn text-gray-300 hover:text-red-500 shrink-0" data-id="${r.id}">${icon('delete',16)}</button>
   </div>`;
+}
+
+async function moveRequirement(id, direction) {
+  try {
+    await api.post(`/requirements/${id}/move`, { direction });
+    _requirements = await api.get('/requirements', { project_id: _id });
+    renderTabContent();
+  } catch (err) { toast(err.message || 'Error', 'error'); }
 }
 
 async function refreshProjectProgress() {
@@ -1528,6 +1546,13 @@ async function refreshProjectProgress() {
 }
 
 function wireRequirementsTab() {
+  document.querySelectorAll('.req-move-up').forEach(btn => {
+    btn.addEventListener('click', () => moveRequirement(btn.dataset.id, 'up'));
+  });
+  document.querySelectorAll('.req-move-down').forEach(btn => {
+    btn.addEventListener('click', () => moveRequirement(btn.dataset.id, 'down'));
+  });
+
   document.querySelectorAll('.req-add-btn').forEach(btn => {
     const type = btn.dataset.type;
     const inputId = `req-new-${type}`;
