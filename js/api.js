@@ -10,6 +10,7 @@ function resolveUrl(path) {
   if (path.startsWith('/auth')) return CENTRAL_API + '/api' + path;
   if (path.startsWith('/calendar')) return CENTRAL_API + '/api' + path;
   if (path.startsWith('/audit')) return CENTRAL_API + '/api' + path;
+  if (path.startsWith('/analytics')) return CENTRAL_API + '/api' + path;
   return CENTRAL_API + '/api/ti' + path;
 }
 

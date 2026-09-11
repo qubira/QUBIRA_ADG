@@ -9,6 +9,7 @@ import { render as renderContracts }   from './pages/contracts.js';
 import { render as renderConfig }      from './pages/configuracion.js';
 import { render as renderCalendario }  from './pages/calendario.js';
 import { render as renderAuditoria }   from './pages/auditoria.js';
+import { render as renderVisitas }     from './pages/visitas.js';
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 const exactRoutes = {};
@@ -53,6 +54,7 @@ const NAV = [
   { path: '/calendario', iconName: 'calendar_month', label: 'Calendario' },
   { path: '/contracts',  iconName: 'description',   label: 'Contratos & Proformas' },
   { path: '/config',     iconName: 'settings',      label: 'Configuración' },
+  { path: '/visitas',    iconName: 'bar_chart',     label: 'Visitas',    visible: canViewAudit },
   { path: '/auditoria',  iconName: 'fact_check',    label: 'Auditoría',  visible: canViewAudit },
 ];
 
@@ -176,6 +178,7 @@ addRoute('/projects',        () => renderProjects());
 addRoute('/projects/:id',    p  => renderProjectDetail(p));
 addRoute('/calendario',      () => renderCalendario());
 addRoute('/auditoria',       () => renderAuditoria());
+addRoute('/visitas',         () => renderVisitas());
 addRoute('/contracts',       () => renderContracts());
 addRoute('/config',          () => renderConfig());
 
