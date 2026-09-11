@@ -1,6 +1,6 @@
 import { api }      from '../api.js';
 import { getUser }  from '../state.js';
-import { pageHeader, spinner, icon } from '../utils.js';
+import { pageHeader, spinner, icon, showModal } from '../utils.js';
 
 const QUALIFYING_CARGOS = ['SUPERVISOR', 'COORDINADOR', 'GERENTE'];
 const EVENT_TYPES = [
@@ -16,9 +16,22 @@ const EVENT_COLOR = {
   chatbot_message: 'bg-amber-100 text-amber-700',
 };
 const DONUT_COLORS = ['#2563eb', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6b7280'];
+const DEVICE_ICON = { 'Móvil': 'smartphone', 'Tablet': 'tablet_mac', 'Escritorio': 'computer', 'Desconocido': 'public' };
+const TIMELINE_ICON = {
+  page_view: 'visibility', case_click: 'open_in_new', whatsapp_click: 'chat',
+  chatbot_open: 'smart_toy', chatbot_message: 'forum',
+};
 
+let _tab = 'sessions'; // 'sessions' | 'events'
 let _days = 30;
 let _summary = null;
+
+let _sRows = [];
+let _sTotal = 0;
+let _sOffset = 0;
+const S_PAGE_SIZE = 30;
+let _sFilters = { q: '', only_leads: false };
+
 let _rows = [];
 let _total = 0;
 let _offset = 0;
@@ -46,7 +59,17 @@ export function render() {
     <div id="visitas-page">${spinner()}</div>
   </div>`;
   _offset = 0;
+  _sOffset = 0;
   loadAll();
+}
+
+function sessionParams() {
+  return {
+    days: _days,
+    q: _sFilters.q || undefined,
+    only_leads: _sFilters.only_leads ? 1 : undefined,
+    limit: S_PAGE_SIZE, offset: _sOffset,
+  };
 }
 
 function eventParams() {
@@ -61,18 +84,28 @@ function eventParams() {
 
 async function loadAll() {
   try {
-    const [summary, events] = await Promise.all([
+    const [summary, sessions] = await Promise.all([
       api.get('/analytics/summary', { days: _days }),
-      api.get('/analytics/events', eventParams()),
+      api.get('/analytics/sessions', sessionParams()),
     ]);
     _summary = summary;
-    _rows = events.rows;
-    _total = events.total;
+    _sRows = sessions.rows;
+    _sTotal = sessions.total;
     renderPage();
   } catch (err) {
     const c = document.getElementById('visitas-page');
     if (c) c.innerHTML = `<p class="text-center text-red-400 py-16">${esc(err.message || 'No se pudo cargar Visitas')}</p>`;
   }
+}
+
+async function reloadSessions(append = false) {
+  try {
+    const data = await api.get('/analytics/sessions', sessionParams());
+    _sRows = append ? [..._sRows, ...data.rows] : data.rows;
+    _sTotal = data.total;
+    renderSessionsTable();
+    renderSessionsFooter();
+  } catch (err) { /* la tabla se queda como estaba si falla un refresco de filtro */ }
 }
 
 async function reloadEvents(append = false) {
@@ -88,11 +121,18 @@ async function reloadEvents(append = false) {
 function renderPage() {
   const c = document.getElementById('visitas-page');
   if (!c) return;
-  c.innerHTML = rangeHtml() + kpiHtml() + chartsHtml() + tableShellHtml();
-  document.getElementById('vis-range')?.addEventListener('change', e => { _days = Number(e.target.value); loadAll(); });
-  renderEventsTable();
-  renderEventsFooter();
-  wireFilters();
+  c.innerHTML = rangeHtml() + kpiHtml() + chartsHtml() + tabsHtml();
+  document.getElementById('vis-range')?.addEventListener('change', e => { _days = Number(e.target.value); _sOffset = 0; _offset = 0; loadAll(); });
+  wireTabs();
+  if (_tab === 'sessions') {
+    renderSessionsTable();
+    renderSessionsFooter();
+    wireSessionFilters();
+  } else {
+    if (_rows.length === 0 && _total === 0) reloadEvents();
+    else { renderEventsTable(); renderEventsFooter(); }
+    wireFilters();
+  }
 }
 
 function rangeHtml() {
@@ -125,12 +165,14 @@ function kpiHtml() {
   return `
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
     ${statCard('visibility', 'Vistas de página', s.total_views, 'bg-primary-600', `últimos ${s.days} días`)}
-    ${statCard('groups', 'Visitantes únicos', s.unique_visitors, 'bg-green-500', 'por dispositivo/navegador')}
-    ${statCard('open_in_new', 'Clicks en casos de éxito', s.case_clicks, 'bg-amber-500', 'botón "Ver sitio"')}
+    ${statCard('groups', 'Visitantes únicos', s.unique_visitors, 'bg-green-500', `${s.new_visitors ?? 0} nuevos · ${s.returning_visitors ?? 0} recurrentes`)}
+    ${statCard('local_fire_department', 'Leads calientes', s.hot_leads ?? 0, 'bg-red-500', 'escribieron o mandaron WhatsApp')}
     ${statCard('chat', 'Clicks en WhatsApp', s.whatsapp_clicks, 'bg-green-500', 'flotante + botones de contacto')}
   </div>
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-    ${statCard('smart_toy', 'Chatbot abierto', s.chatbot_opens, 'bg-purple-500', 'veces que lo abrieron')}
+    ${statCard('person_add', 'Visitantes nuevos', s.new_visitors ?? 0, 'bg-primary-600', 'primera vez en este rango')}
+    ${statCard('how_to_reg', 'Recurrentes', s.returning_visitors ?? 0, 'bg-amber-500', 'ya habían visitado antes')}
+    ${statCard('open_in_new', 'Clicks en casos de éxito', s.case_clicks, 'bg-amber-500', 'botón "Ver sitio"')}
     ${statCard('forum', 'Preguntas al chatbot', s.chatbot_messages, 'bg-purple-500', 'mensajes enviados')}
   </div>`;
 }
@@ -200,6 +242,14 @@ function chartsHtml() {
       <span class="text-gray-400 tabular-nums">${c.total}</span>
     </div>`).join('');
 
+  const devices = s.device_breakdown || [];
+  const deviceLegend = devices.map((d, i) => `
+    <div class="flex items-center gap-2 text-sm py-1" style="min-width:150px">
+      <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${DONUT_COLORS[i % DONUT_COLORS.length]}"></span>
+      <span class="text-gray-700 flex-1 flex items-center gap-1.5">${icon(DEVICE_ICON[d.device] || 'public', 15)}${esc(d.device)}</span>
+      <span class="text-gray-400 tabular-nums">${d.total}</span>
+    </div>`).join('');
+
   return `
   <div class="card p-5 mb-6">
     <h3 class="font-semibold text-gray-900 mb-3">Vistas de página por día (${s.days} días)</h3>
@@ -218,16 +268,163 @@ function chartsHtml() {
       </div>
     </div>
     <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Dispositivos</h3>
+      <div class="flex items-center gap-5 flex-wrap">
+        ${devices.length === 0
+          ? '<p class="text-sm text-gray-400">Sin datos en este rango.</p>'
+          : donutChart(devices.map(d => ({ label: d.device, value: d.total })), { holeLabel: 'visitas' })}
+        <div class="flex flex-col">${deviceLegend}</div>
+      </div>
+    </div>
+    <div class="card p-5">
       <h3 class="font-semibold text-gray-900 mb-3">Páginas más vistas</h3>
       ${(s.top_pages || []).length === 0
         ? '<p class="text-sm text-gray-400">Sin datos en este rango.</p>'
         : `<div class="divide-y divide-gray-50">${s.top_pages.map(p => `
             <div class="flex items-center justify-between py-2 text-sm"><span class="text-gray-700">${esc(p.page)}</span><span class="text-gray-400">${p.total}</span></div>`).join('')}</div>`}
     </div>
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">De dónde llegan</h3>
+      ${(s.top_referrers || []).length === 0
+        ? '<p class="text-sm text-gray-400">Sin referencias externas en este rango (entran directo).</p>'
+        : `<div class="divide-y divide-gray-50">${s.top_referrers.map(r => `
+            <div class="flex items-center justify-between py-2 text-sm"><span class="text-gray-700" title="${esc(r.referrer)}">${esc(referrerHost(r.referrer))}</span><span class="text-gray-400">${r.total}</span></div>`).join('')}</div>`}
+    </div>
   </div>`;
 }
 
-function tableShellHtml() {
+function tabsHtml() {
+  return `
+  <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+    <div class="flex gap-2">
+      <button id="vis-tab-sessions" class="${_tab === 'sessions' ? 'btn-primary' : 'btn-secondary'} text-sm px-3 py-2 inline-flex items-center gap-1.5">${icon('groups', 17)} Sesiones</button>
+      <button id="vis-tab-events" class="${_tab === 'events' ? 'btn-primary' : 'btn-secondary'} text-sm px-3 py-2 inline-flex items-center gap-1.5">${icon('list_alt', 17)} Eventos crudos</button>
+    </div>
+  </div>
+  <div id="vis-tab-body">${_tab === 'sessions' ? sessionsShellHtml() : eventsShellHtml()}</div>`;
+}
+
+function wireTabs() {
+  document.getElementById('vis-tab-sessions')?.addEventListener('click', () => { if (_tab !== 'sessions') { _tab = 'sessions'; renderPage(); } });
+  document.getElementById('vis-tab-events')?.addEventListener('click', () => { if (_tab !== 'events') { _tab = 'events'; renderPage(); } });
+}
+
+// ─── Sesiones (viaje del visitante) ────────────────────────────────────────
+
+function sessionsShellHtml() {
+  return `
+  <div class="flex flex-wrap items-center gap-3 mb-4">
+    <input id="vis-s-q" class="input w-auto" placeholder="Buscar caso, página, origen..." value="${esc(_sFilters.q)}">
+    <label class="flex items-center gap-2 text-sm text-gray-500 cursor-pointer">
+      <input type="checkbox" id="vis-s-leads" ${_sFilters.only_leads ? 'checked' : ''}> Solo leads calientes 🔥
+    </label>
+  </div>
+  <div id="sessions-table-wrap"></div>
+  <div class="flex items-center justify-between mt-4 text-sm text-gray-500">
+    <span id="sessions-count"></span>
+    <button id="sessions-load-more" class="btn-secondary text-xs px-3 py-1.5" style="display:none">Cargar más</button>
+  </div>`;
+}
+
+function referrerHost(ref) {
+  if (!ref) return '—';
+  try { return new URL(ref).hostname; } catch { return ref.slice(0, 40); }
+}
+
+function sessionRowHtml(r) {
+  const cases = (r.cases || []).slice(0, 2).map(c => `<span class="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full mr-1">${esc(c)}</span>`).join('');
+  const casesExtra = (r.cases || []).length > 2 ? `<span class="inline-block bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">+${r.cases.length - 2}</span>` : '';
+  return `
+  <div class="grid grid-cols-[150px_180px_80px_1fr_100px_100px_90px] gap-3 px-4 py-2.5 text-sm items-center vis-session-row cursor-pointer hover:bg-gray-50" data-session="${esc(r.session_id)}">
+    <span class="text-gray-500 text-xs">${fmtDateTime(r.last_seen)}</span>
+    <span class="text-gray-700 text-xs flex items-center gap-1.5">${icon(DEVICE_ICON[r.device] || 'public', 16)} ${esc(r.device)} · ${esc(r.browser)}</span>
+    <span class="text-gray-500 text-xs">${r.page_views}</span>
+    <span class="truncate">${cases || '<span class="text-gray-300 text-xs">—</span>'}${casesExtra}</span>
+    <span class="text-gray-500 text-xs">${r.whatsapp_clicks > 0 ? `${icon('chat', 14)} ${r.whatsapp_clicks}` : '—'}</span>
+    <span class="text-gray-500 text-xs">${r.chatbot_messages > 0 ? `${icon('forum', 14)} ${r.chatbot_messages}` : '—'}</span>
+    <span>${r.is_lead ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">🔥 Lead</span>' : ''}</span>
+  </div>`;
+}
+
+function renderSessionsTable() {
+  const wrap = document.getElementById('sessions-table-wrap');
+  if (!wrap) return;
+  if (_sRows.length === 0) {
+    wrap.innerHTML = `<div class="card p-8 text-center text-gray-400 text-sm">Sin sesiones en este rango</div>`;
+    return;
+  }
+  wrap.innerHTML = `
+  <div class="card divide-y divide-gray-100">
+    <div class="grid grid-cols-[150px_180px_80px_1fr_100px_100px_90px] gap-3 px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+      <span>Última visita</span><span>Dispositivo</span><span>Páginas</span><span>Casos vistos</span><span>WhatsApp</span><span>Chatbot</span><span></span>
+    </div>
+    ${_sRows.map(sessionRowHtml).join('')}
+  </div>`;
+  wrap.querySelectorAll('.vis-session-row').forEach(el => {
+    el.addEventListener('click', () => openSessionTimeline(el.dataset.session));
+  });
+}
+
+function renderSessionsFooter() {
+  const count = document.getElementById('sessions-count');
+  const more = document.getElementById('sessions-load-more');
+  if (count) count.textContent = `${_sRows.length} de ${_sTotal} sesiones`;
+  if (more) {
+    more.style.display = _sRows.length < _sTotal ? 'inline-flex' : 'none';
+    more.onclick = () => { _sOffset += S_PAGE_SIZE; reloadSessions(true); };
+  }
+}
+
+function wireSessionFilters() {
+  let qDebounce;
+  document.getElementById('vis-s-q')?.addEventListener('input', e => {
+    clearTimeout(qDebounce);
+    qDebounce = setTimeout(() => { _sFilters.q = e.target.value; _sOffset = 0; reloadSessions(); }, 350);
+  });
+  document.getElementById('vis-s-leads')?.addEventListener('change', e => {
+    _sFilters.only_leads = e.target.checked; _sOffset = 0; reloadSessions();
+  });
+}
+
+async function openSessionTimeline(sessionId) {
+  showModal('Recorrido del visitante', `<div id="vis-timeline-body"><p class="text-sm text-gray-400">Cargando recorrido…</p></div>`, 'lg');
+  try {
+    const data = await api.get(`/analytics/sessions/${encodeURIComponent(sessionId)}/timeline`);
+    const body = document.getElementById('vis-timeline-body');
+    if (!body) return;
+    if (!data.events.length) {
+      body.innerHTML = `<p class="text-sm text-gray-400">Sin eventos para esta sesión.</p>`;
+      return;
+    }
+    const header = `
+      <div class="flex flex-wrap gap-4 px-3 py-2.5 bg-gray-50 rounded-xl mb-4 text-sm text-gray-500">
+        <span class="flex items-center gap-1.5">${icon(DEVICE_ICON[data.device] || 'public', 16)} ${esc(data.device || '—')}</span>
+        <span>${esc(data.browser || '—')}</span>
+        <span>${esc(data.os || '—')}</span>
+        <span class="flex items-center gap-1.5">${icon('place', 16)} ${esc(data.ip_address || '—')}</span>
+      </div>`;
+    const items = data.events.map(ev => `
+      <div class="flex gap-3 py-2.5 border-b border-gray-100 last:border-0">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${EVENT_COLOR[ev.event_type] || 'bg-gray-100 text-gray-600'}">${icon(TIMELINE_ICON[ev.event_type] || 'bolt', 16)}</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <strong class="text-sm text-gray-900">${esc(ev.event_label)}</strong>
+            <span class="text-xs text-gray-400">${fmtDateTime(ev.created_at)}</span>
+          </div>
+          ${(ev.case_name || ev.label) ? `<p class="text-sm text-gray-500 mt-0.5 break-words">${esc(ev.case_name || ev.label)}</p>` : ''}
+          ${ev.page ? `<p class="text-xs text-gray-400 mt-0.5">${esc(ev.page)}</p>` : ''}
+        </div>
+      </div>`).join('');
+    body.innerHTML = header + `<div>${items}</div>`;
+  } catch (err) {
+    const body = document.getElementById('vis-timeline-body');
+    if (body) body.innerHTML = `<p class="text-sm text-red-500">${esc(err.message || 'Error al cargar el recorrido')}</p>`;
+  }
+}
+
+// ─── Eventos crudos (tabla plana, como antes) ──────────────────────────────
+
+function eventsShellHtml() {
   return `
   <div class="flex flex-wrap items-center gap-3 mb-4">
     <select id="vis-f-type" class="input w-auto">
@@ -243,11 +440,6 @@ function tableShellHtml() {
     <span id="visitas-count"></span>
     <button id="visitas-load-more" class="btn-secondary text-xs px-3 py-1.5" style="display:none">Cargar más</button>
   </div>`;
-}
-
-function referrerHost(ref) {
-  if (!ref) return '—';
-  try { return new URL(ref).hostname; } catch { return ref.slice(0, 40); }
 }
 
 function rowHtml(r) {
