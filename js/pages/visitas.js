@@ -13,6 +13,8 @@ const EVENT_TYPES = [
   ['time_on_page', 'Tiempo en página'],
   ['outbound_click', 'Click a link externo'],
   ['nav_click', 'Click en navegación'],
+  ['job_apply_click', 'Click en Postular (empleo)'],
+  ['job_apply_submit', 'Postulación enviada'],
 ];
 const EVENT_COLOR = {
   page_view: 'bg-gray-100 text-gray-600', case_click: 'bg-green-100 text-green-700',
@@ -20,6 +22,7 @@ const EVENT_COLOR = {
   chatbot_message: 'bg-amber-100 text-amber-700',
   scroll_depth: 'bg-gray-100 text-gray-600', time_on_page: 'bg-gray-100 text-gray-600',
   outbound_click: 'bg-amber-100 text-amber-700', nav_click: 'bg-gray-100 text-gray-600',
+  job_apply_click: 'bg-amber-100 text-amber-700', job_apply_submit: 'bg-green-100 text-green-700',
 };
 const DONUT_COLORS = ['#2563eb', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6b7280'];
 const DEVICE_ICON = { 'Móvil': 'smartphone', 'Tablet': 'tablet_mac', 'Escritorio': 'computer', 'Desconocido': 'public' };
@@ -27,6 +30,7 @@ const TIMELINE_ICON = {
   page_view: 'visibility', case_click: 'open_in_new', whatsapp_click: 'chat',
   chatbot_open: 'smart_toy', chatbot_message: 'forum',
   scroll_depth: 'leaderboard', time_on_page: 'schedule', outbound_click: 'open_in_new', nav_click: 'touch_app',
+  job_apply_click: 'work', job_apply_submit: 'check_circle',
 };
 
 let _tab = 'sessions'; // 'sessions' | 'events'
@@ -219,11 +223,15 @@ function resumenHtml() {
     ${statCard('local_fire_department', 'Leads calientes', s.hot_leads ?? 0, 'bg-red-500', 'escribieron o mandaron WhatsApp')}
     ${statCard('chat', 'Clicks en WhatsApp', s.whatsapp_clicks, 'bg-green-500', 'flotante + botones de contacto')}
   </div>
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
     ${statCard('person_add', 'Visitantes nuevos', s.new_visitors ?? 0, 'bg-primary-600', 'primera vez en este rango')}
     ${statCard('how_to_reg', 'Recurrentes', s.returning_visitors ?? 0, 'bg-amber-500', 'ya habían visitado antes')}
     ${statCard('schedule', 'Tiempo promedio en página', formatSeconds(s.avg_time_on_page_seconds), 'bg-primary-600', 'mientras la pestaña estaba visible')}
     ${statCard('bolt', 'Tasa de interacción', `${s.engagement_rate ?? 0}%`, 'bg-green-500', `${s.engaged_sessions ?? 0} de ${s.total_sessions ?? 0} sesiones`)}
+  </div>
+  <div class="grid grid-cols-2 gap-4 mb-6">
+    ${statCard('work', 'Clicks en Postular', s.job_apply_clicks ?? 0, 'bg-amber-500', 'abrieron el formulario de una oferta')}
+    ${statCard('check_circle', 'Postulaciones enviadas', s.job_applications ?? 0, 'bg-green-500', 'bolsa de trabajo pública')}
   </div>
   <div class="card p-5">
     <h3 class="font-semibold text-gray-900 mb-3">Vistas de página por día (${s.days} días)</h3>
@@ -287,6 +295,7 @@ function comportamientoHtml() {
   const pageRows = (s.top_pages || []).map(p => ({ label: p.page, value: p.total }));
   const navRows = (s.top_nav_clicks || []).map(n => ({ label: n.seccion, value: n.total }));
   const outboundRows = (s.top_outbound_clicks || []).map(o => ({ label: o.destino, value: o.total }));
+  const jobApplicationRows = (s.top_job_applications || []).map(j => ({ label: j.puesto, value: j.total }));
 
   return `
   ${sectionHeading('bolt', 'Comportamiento', 'Qué tan lejos llegan los visitantes en la página y con qué elementos interactúan.')}
@@ -327,6 +336,10 @@ function comportamientoHtml() {
       <h3 class="font-semibold text-gray-900 mb-3">Clicks a links externos</h3>
       ${barListHtml(outboundRows, 'Sin clicks a sitios externos en este rango.')}
     </div>
+  </div>
+  <div class="card p-5 mt-6">
+    <h3 class="font-semibold text-gray-900 mb-3">Postulaciones por oferta (bolsa de trabajo)</h3>
+    ${barListHtml(jobApplicationRows, 'Sin postulaciones en este rango.')}
   </div>`;
 }
 
