@@ -9,17 +9,24 @@ const EVENT_TYPES = [
   ['whatsapp_click', 'Click en WhatsApp'],
   ['chatbot_open', 'Abrió el chatbot'],
   ['chatbot_message', 'Mensaje al chatbot'],
+  ['scroll_depth', 'Scroll'],
+  ['time_on_page', 'Tiempo en página'],
+  ['outbound_click', 'Click a link externo'],
+  ['nav_click', 'Click en navegación'],
 ];
 const EVENT_COLOR = {
   page_view: 'bg-gray-100 text-gray-600', case_click: 'bg-green-100 text-green-700',
   whatsapp_click: 'bg-green-100 text-green-700', chatbot_open: 'bg-amber-100 text-amber-700',
   chatbot_message: 'bg-amber-100 text-amber-700',
+  scroll_depth: 'bg-gray-100 text-gray-600', time_on_page: 'bg-gray-100 text-gray-600',
+  outbound_click: 'bg-amber-100 text-amber-700', nav_click: 'bg-gray-100 text-gray-600',
 };
 const DONUT_COLORS = ['#2563eb', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6b7280'];
 const DEVICE_ICON = { 'Móvil': 'smartphone', 'Tablet': 'tablet_mac', 'Escritorio': 'computer', 'Desconocido': 'public' };
 const TIMELINE_ICON = {
   page_view: 'visibility', case_click: 'open_in_new', whatsapp_click: 'chat',
   chatbot_open: 'smart_toy', chatbot_message: 'forum',
+  scroll_depth: 'leaderboard', time_on_page: 'schedule', outbound_click: 'open_in_new', nav_click: 'touch_app',
 };
 
 let _tab = 'sessions'; // 'sessions' | 'events'
@@ -169,12 +176,24 @@ function kpiHtml() {
     ${statCard('local_fire_department', 'Leads calientes', s.hot_leads ?? 0, 'bg-red-500', 'escribieron o mandaron WhatsApp')}
     ${statCard('chat', 'Clicks en WhatsApp', s.whatsapp_clicks, 'bg-green-500', 'flotante + botones de contacto')}
   </div>
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
     ${statCard('person_add', 'Visitantes nuevos', s.new_visitors ?? 0, 'bg-primary-600', 'primera vez en este rango')}
     ${statCard('how_to_reg', 'Recurrentes', s.returning_visitors ?? 0, 'bg-amber-500', 'ya habían visitado antes')}
     ${statCard('open_in_new', 'Clicks en casos de éxito', s.case_clicks, 'bg-amber-500', 'botón "Ver sitio"')}
     ${statCard('forum', 'Preguntas al chatbot', s.chatbot_messages, 'bg-purple-500', 'mensajes enviados')}
+  </div>
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    ${statCard('schedule', 'Tiempo promedio en página', formatSeconds(s.avg_time_on_page_seconds), 'bg-primary-600', 'mientras la pestaña estaba visible')}
+    ${statCard('bolt', 'Tasa de interacción', `${s.engagement_rate ?? 0}%`, 'bg-green-500', `${s.engaged_sessions ?? 0} de ${s.total_sessions ?? 0} sesiones`)}
   </div>`;
+}
+
+function formatSeconds(totalSeconds) {
+  const s = Math.round(totalSeconds || 0);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return `${m}m ${rem}s`;
 }
 
 /* ── Gráficos SVG minimalistas, sin librerías — mismo criterio que el
@@ -290,7 +309,71 @@ function chartsHtml() {
         : `<div class="divide-y divide-gray-50">${s.top_referrers.map(r => `
             <div class="flex items-center justify-between py-2 text-sm"><span class="text-gray-700" title="${esc(r.referrer)}">${esc(referrerHost(r.referrer))}</span><span class="text-gray-400">${r.total}</span></div>`).join('')}</div>`}
     </div>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Profundidad de scroll</h3>
+      ${scrollFunnelHtml(s.scroll_depth || [])}
+    </div>
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Canales de tráfico</h3>
+      <div class="flex items-center gap-5 flex-wrap">
+        ${(s.channels || []).length === 0
+          ? '<p class="text-sm text-gray-400">Sin datos en este rango.</p>'
+          : donutChart((s.channels || []).map(c => ({ label: c.channel, value: c.total })), { holeLabel: 'sesiones' })}
+        <div class="flex flex-col">${(s.channels || []).map((c, i) => `
+          <div class="flex items-center gap-2 text-sm py-1" style="min-width:180px">
+            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${DONUT_COLORS[i % DONUT_COLORS.length]}"></span>
+            <span class="text-gray-700 flex-1">${esc(c.channel)}</span>
+            <span class="text-gray-400 tabular-nums">${c.total}</span>
+          </div>`).join('')}</div>
+      </div>
+    </div>
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Campañas (UTM)</h3>
+      ${(s.top_campaigns || []).length === 0
+        ? '<p class="text-sm text-gray-400">Sin campañas registradas en este rango.</p>'
+        : `<div class="divide-y divide-gray-50">${s.top_campaigns.map(c => `
+            <div class="flex items-center justify-between py-2 text-sm"><span class="text-gray-700">${esc(c.utm_campaign)} <span class="text-gray-400">· ${esc(c.utm_source || '')}</span></span><span class="text-gray-400">${c.sessions}</span></div>`).join('')}</div>`}
+    </div>
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Clicks en navegación</h3>
+      ${(s.top_nav_clicks || []).length === 0
+        ? '<p class="text-sm text-gray-400">Sin clicks de navegación en este rango.</p>'
+        : `<div class="divide-y divide-gray-50">${s.top_nav_clicks.map(n => `
+            <div class="flex items-center justify-between py-2 text-sm"><span class="text-gray-700">${esc(n.seccion)}</span><span class="text-gray-400">${n.total}</span></div>`).join('')}</div>`}
+    </div>
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Clicks a links externos</h3>
+      ${(s.top_outbound_clicks || []).length === 0
+        ? '<p class="text-sm text-gray-400">Sin clicks a sitios externos en este rango.</p>'
+        : `<div class="divide-y divide-gray-50">${s.top_outbound_clicks.map(o => `
+            <div class="flex items-center justify-between py-2 text-sm"><span class="text-gray-700">${esc(o.destino)}</span><span class="text-gray-400">${o.total}</span></div>`).join('')}</div>`}
+    </div>
   </div>`;
+}
+
+function scrollFunnelHtml(scrollDepth) {
+  const order = ['25', '50', '75', '100'];
+  const byDepth = Object.fromEntries((scrollDepth || []).map(r => [String(r.depth), Number(r.sessions) || 0]));
+  const max = Math.max(1, ...order.map(d => byDepth[d] || 0));
+  if (order.every(d => !byDepth[d])) {
+    return '<p class="text-sm text-gray-400">Sin datos de scroll en este rango.</p>';
+  }
+  return `<div class="flex flex-col gap-3">${order.map(d => {
+    const val = byDepth[d] || 0;
+    const pct = Math.round((val / max) * 100);
+    return `
+    <div>
+      <div class="flex justify-between text-sm mb-1">
+        <span class="text-gray-700">${d}% de la página</span>
+        <span class="text-gray-400 tabular-nums">${val} sesiones</span>
+      </div>
+      <div class="bg-gray-100 rounded-md h-2.5 overflow-hidden">
+        <div class="h-full rounded-md bg-primary-600" style="width:${pct}%"></div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 function tabsHtml() {
@@ -335,13 +418,15 @@ function sessionRowHtml(r) {
   const cases = (r.cases || []).slice(0, 2).map(c => `<span class="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full mr-1">${esc(c)}</span>`).join('');
   const casesExtra = (r.cases || []).length > 2 ? `<span class="inline-block bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">+${r.cases.length - 2}</span>` : '';
   return `
-  <div class="grid grid-cols-[150px_180px_80px_1fr_100px_100px_90px] gap-3 px-4 py-2.5 text-sm items-center vis-session-row cursor-pointer hover:bg-gray-50" data-session="${esc(r.session_id)}">
+  <div class="grid grid-cols-[150px_180px_80px_130px_1fr_100px_100px_110px_90px] gap-3 px-4 py-2.5 text-sm items-center vis-session-row cursor-pointer hover:bg-gray-50" data-session="${esc(r.session_id)}">
     <span class="text-gray-500 text-xs">${fmtDateTime(r.last_seen)}</span>
     <span class="text-gray-700 text-xs flex items-center gap-1.5">${icon(DEVICE_ICON[r.device] || 'public', 16)} ${esc(r.device)} · ${esc(r.browser)}</span>
     <span class="text-gray-500 text-xs">${r.page_views}</span>
+    <span class="text-gray-500 text-xs truncate" title="${esc(r.entry_page || '')} → ${esc(r.exit_page || '')}">${esc(r.channel || 'Directo')}</span>
     <span class="truncate">${cases || '<span class="text-gray-300 text-xs">—</span>'}${casesExtra}</span>
     <span class="text-gray-500 text-xs">${r.whatsapp_clicks > 0 ? `${icon('chat', 14)} ${r.whatsapp_clicks}` : '—'}</span>
     <span class="text-gray-500 text-xs">${r.chatbot_messages > 0 ? `${icon('forum', 14)} ${r.chatbot_messages}` : '—'}</span>
+    <span class="text-gray-500 text-xs">${r.time_on_page_seconds != null ? formatSeconds(r.time_on_page_seconds) : '—'}${r.scroll_max ? ` · ${r.scroll_max}%` : ''}</span>
     <span>${r.is_lead ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">🔥 Lead</span>' : ''}</span>
   </div>`;
 }
@@ -355,8 +440,8 @@ function renderSessionsTable() {
   }
   wrap.innerHTML = `
   <div class="card divide-y divide-gray-100">
-    <div class="grid grid-cols-[150px_180px_80px_1fr_100px_100px_90px] gap-3 px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
-      <span>Última visita</span><span>Dispositivo</span><span>Páginas</span><span>Casos vistos</span><span>WhatsApp</span><span>Chatbot</span><span></span>
+    <div class="grid grid-cols-[150px_180px_80px_130px_1fr_100px_100px_110px_90px] gap-3 px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+      <span>Última visita</span><span>Dispositivo</span><span>Páginas</span><span>Canal</span><span>Casos vistos</span><span>WhatsApp</span><span>Chatbot</span><span>Tiempo/Scroll</span><span></span>
     </div>
     ${_sRows.map(sessionRowHtml).join('')}
   </div>`;
