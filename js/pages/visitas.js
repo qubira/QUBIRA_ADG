@@ -30,6 +30,7 @@ const TIMELINE_ICON = {
 };
 
 let _tab = 'sessions'; // 'sessions' | 'events'
+let _metricsTab = 'resumen'; // 'resumen' | 'adquisicion' | 'comportamiento'
 let _days = 30;
 let _summary = null;
 
@@ -128,8 +129,9 @@ async function reloadEvents(append = false) {
 function renderPage() {
   const c = document.getElementById('visitas-page');
   if (!c) return;
-  c.innerHTML = rangeHtml() + kpiHtml() + chartsHtml() + tabsHtml();
+  c.innerHTML = rangeHtml() + metricsTabsHtml() + metricsContentHtml() + tabsHtml();
   document.getElementById('vis-range')?.addEventListener('change', e => { _days = Number(e.target.value); _sOffset = 0; _offset = 0; loadAll(); });
+  wireMetricsTabs();
   wireTabs();
   if (_tab === 'sessions') {
     renderSessionsTable();
@@ -167,24 +169,164 @@ function statCard(iconName, label, value, color, sub = '') {
   </div>`;
 }
 
-function kpiHtml() {
+function metricsTabsHtml() {
+  const tabs = [
+    ['resumen', 'Resumen', 'bar_chart'],
+    ['adquisicion', 'Adquisición', 'public'],
+    ['comportamiento', 'Comportamiento', 'bolt'],
+  ];
+  return `
+  <div class="flex gap-2 mb-6 flex-wrap">
+    ${tabs.map(([key, label, ic]) => `
+      <button id="vis-mtab-${key}" class="${_metricsTab === key ? 'btn-primary' : 'btn-secondary'} text-sm px-3 py-2 inline-flex items-center gap-1.5">${icon(ic, 17)} ${label}</button>`).join('')}
+  </div>`;
+}
+
+function wireMetricsTabs() {
+  ['resumen', 'adquisicion', 'comportamiento'].forEach(key => {
+    document.getElementById('vis-mtab-' + key)?.addEventListener('click', () => {
+      if (_metricsTab === key) return;
+      _metricsTab = key;
+      renderPage();
+    });
+  });
+}
+
+function metricsContentHtml() {
+  if (_metricsTab === 'adquisicion') return adquisicionHtml();
+  if (_metricsTab === 'comportamiento') return comportamientoHtml();
+  return resumenHtml();
+}
+
+function sectionHeading(iconName, title, desc) {
+  return `
+  <div class="flex items-start gap-3 mb-4">
+    <div class="w-9 h-9 rounded-xl bg-primary-100 text-primary-600 flex items-center justify-center shrink-0">${icon(iconName, 19)}</div>
+    <div>
+      <h2 class="text-base font-bold text-gray-900">${title}</h2>
+      <p class="text-sm text-gray-500 mt-0.5 max-w-lg">${desc}</p>
+    </div>
+  </div>`;
+}
+
+function resumenHtml() {
   const s = _summary;
   return `
+  ${sectionHeading('bar_chart', 'Resumen', 'Panorama general del tráfico e interacciones del sitio en el rango seleccionado.')}
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
     ${statCard('visibility', 'Vistas de página', s.total_views, 'bg-primary-600', `últimos ${s.days} días`)}
     ${statCard('groups', 'Visitantes únicos', s.unique_visitors, 'bg-green-500', `${s.new_visitors ?? 0} nuevos · ${s.returning_visitors ?? 0} recurrentes`)}
     ${statCard('local_fire_department', 'Leads calientes', s.hot_leads ?? 0, 'bg-red-500', 'escribieron o mandaron WhatsApp')}
     ${statCard('chat', 'Clicks en WhatsApp', s.whatsapp_clicks, 'bg-green-500', 'flotante + botones de contacto')}
   </div>
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     ${statCard('person_add', 'Visitantes nuevos', s.new_visitors ?? 0, 'bg-primary-600', 'primera vez en este rango')}
     ${statCard('how_to_reg', 'Recurrentes', s.returning_visitors ?? 0, 'bg-amber-500', 'ya habían visitado antes')}
-    ${statCard('open_in_new', 'Clicks en casos de éxito', s.case_clicks, 'bg-amber-500', 'botón "Ver sitio"')}
-    ${statCard('forum', 'Preguntas al chatbot', s.chatbot_messages, 'bg-purple-500', 'mensajes enviados')}
-  </div>
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     ${statCard('schedule', 'Tiempo promedio en página', formatSeconds(s.avg_time_on_page_seconds), 'bg-primary-600', 'mientras la pestaña estaba visible')}
     ${statCard('bolt', 'Tasa de interacción', `${s.engagement_rate ?? 0}%`, 'bg-green-500', `${s.engaged_sessions ?? 0} de ${s.total_sessions ?? 0} sesiones`)}
+  </div>
+  <div class="card p-5">
+    <h3 class="font-semibold text-gray-900 mb-3">Vistas de página por día (${s.days} días)</h3>
+    ${(s.views_by_day || []).length === 0
+      ? '<p class="text-center text-gray-400 py-10 text-sm">Sin vistas registradas en este rango.</p>'
+      : singleBarChart(s.views_by_day, { key: 'total' })}
+  </div>`;
+}
+
+function adquisicionHtml() {
+  const s = _summary;
+  const channels = s.channels || [];
+  const channelLegend = channels.map((c, i) => `
+    <div class="flex items-center gap-2 text-sm py-1" style="min-width:180px">
+      <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${DONUT_COLORS[i % DONUT_COLORS.length]}"></span>
+      <span class="text-gray-700 flex-1">${esc(c.channel)}</span>
+      <span class="text-gray-400 tabular-nums">${c.total}</span>
+    </div>`).join('');
+  const campaignRows = (s.top_campaigns || []).map(c => ({ label: `${c.utm_campaign} · ${c.utm_source || ''}`, value: c.sessions }));
+  const referrerRows = (s.top_referrers || []).map(r => ({ label: referrerHost(r.referrer), value: r.total, title: r.referrer }));
+
+  return `
+  ${sectionHeading('public', 'Adquisición', 'De dónde vienen tus visitantes: canales de tráfico, campañas de marketing y sitios que refieren.')}
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Canales de tráfico</h3>
+      <div class="flex items-center gap-5 flex-wrap">
+        ${channels.length === 0
+          ? '<p class="text-sm text-gray-400">Sin datos en este rango.</p>'
+          : donutChart(channels.map(c => ({ label: c.channel, value: c.total })), { holeLabel: 'sesiones' })}
+        <div class="flex flex-col">${channelLegend}</div>
+      </div>
+    </div>
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Campañas (UTM)</h3>
+      ${barListHtml(campaignRows, 'Sin campañas registradas en este rango.')}
+    </div>
+  </div>
+  <div class="card p-5">
+    <h3 class="font-semibold text-gray-900 mb-3">De dónde llegan</h3>
+    ${barListHtml(referrerRows, 'Sin referencias externas en este rango (entran directo).')}
+  </div>`;
+}
+
+function comportamientoHtml() {
+  const s = _summary;
+  const cases = s.top_cases || [];
+  const caseLegend = cases.map((c, i) => `
+    <div class="flex items-center gap-2 text-sm py-1" style="min-width:180px">
+      <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${DONUT_COLORS[i % DONUT_COLORS.length]}"></span>
+      <span class="text-gray-700 flex-1">${esc(c.case_name)}</span>
+      <span class="text-gray-400 tabular-nums">${c.total}</span>
+    </div>`).join('');
+  const devices = s.device_breakdown || [];
+  const deviceLegend = devices.map((d, i) => `
+    <div class="flex items-center gap-2 text-sm py-1" style="min-width:150px">
+      <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${DONUT_COLORS[i % DONUT_COLORS.length]}"></span>
+      <span class="text-gray-700 flex-1 flex items-center gap-1.5">${icon(DEVICE_ICON[d.device] || 'public', 15)}${esc(d.device)}</span>
+      <span class="text-gray-400 tabular-nums">${d.total}</span>
+    </div>`).join('');
+  const pageRows = (s.top_pages || []).map(p => ({ label: p.page, value: p.total }));
+  const navRows = (s.top_nav_clicks || []).map(n => ({ label: n.seccion, value: n.total }));
+  const outboundRows = (s.top_outbound_clicks || []).map(o => ({ label: o.destino, value: o.total }));
+
+  return `
+  ${sectionHeading('bolt', 'Comportamiento', 'Qué tan lejos llegan los visitantes en la página y con qué elementos interactúan.')}
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Profundidad de scroll</h3>
+      ${funnelHtml(s.scroll_depth || [])}
+    </div>
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Páginas más vistas</h3>
+      ${barListHtml(pageRows, 'Sin datos en este rango.')}
+    </div>
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Casos de éxito más clickeados</h3>
+      <div class="flex items-center gap-5 flex-wrap">
+        ${cases.length === 0
+          ? '<p class="text-sm text-gray-400">Sin clicks todavía en este rango.</p>'
+          : donutChart(cases.map(c => ({ label: c.case_name, value: c.total })), { holeLabel: 'clicks' })}
+        <div class="flex flex-col">${caseLegend}</div>
+      </div>
+    </div>
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Dispositivos</h3>
+      <div class="flex items-center gap-5 flex-wrap">
+        ${devices.length === 0
+          ? '<p class="text-sm text-gray-400">Sin datos en este rango.</p>'
+          : donutChart(devices.map(d => ({ label: d.device, value: d.total })), { holeLabel: 'visitas' })}
+        <div class="flex flex-col">${deviceLegend}</div>
+      </div>
+    </div>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Clicks en navegación</h3>
+      ${barListHtml(navRows, 'Sin clicks de navegación en este rango.')}
+    </div>
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-900 mb-3">Clicks a links externos</h3>
+      ${barListHtml(outboundRows, 'Sin clicks a sitios externos en este rango.')}
+    </div>
   </div>`;
 }
 
@@ -251,127 +393,52 @@ function donutChart(data, { size = 150, colors = DONUT_COLORS, holeLabel = '' } 
     </div>`;
 }
 
-function chartsHtml() {
-  const s = _summary;
-  const cases = s.top_cases || [];
-  const legend = cases.map((c, i) => `
-    <div class="flex items-center gap-2 text-sm py-1" style="min-width:180px">
-      <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${DONUT_COLORS[i % DONUT_COLORS.length]}"></span>
-      <span class="text-gray-700 flex-1">${esc(c.case_name)}</span>
-      <span class="text-gray-400 tabular-nums">${c.total}</span>
-    </div>`).join('');
-
-  const devices = s.device_breakdown || [];
-  const deviceLegend = devices.map((d, i) => `
-    <div class="flex items-center gap-2 text-sm py-1" style="min-width:150px">
-      <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${DONUT_COLORS[i % DONUT_COLORS.length]}"></span>
-      <span class="text-gray-700 flex-1 flex items-center gap-1.5">${icon(DEVICE_ICON[d.device] || 'public', 15)}${esc(d.device)}</span>
-      <span class="text-gray-400 tabular-nums">${d.total}</span>
-    </div>`).join('');
-
-  return `
-  <div class="card p-5 mb-6">
-    <h3 class="font-semibold text-gray-900 mb-3">Vistas de página por día (${s.days} días)</h3>
-    ${(s.views_by_day || []).length === 0
-      ? '<p class="text-center text-gray-400 py-10 text-sm">Sin vistas registradas en este rango.</p>'
-      : singleBarChart(s.views_by_day, { key: 'total' })}
-  </div>
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-    <div class="card p-5">
-      <h3 class="font-semibold text-gray-900 mb-3">Casos de éxito más clickeados</h3>
-      <div class="flex items-center gap-5 flex-wrap">
-        ${cases.length === 0
-          ? '<p class="text-sm text-gray-400">Sin clicks todavía en este rango.</p>'
-          : donutChart(cases.map(c => ({ label: c.case_name, value: c.total })), { holeLabel: 'clicks' })}
-        <div class="flex flex-col">${legend}</div>
-      </div>
-    </div>
-    <div class="card p-5">
-      <h3 class="font-semibold text-gray-900 mb-3">Dispositivos</h3>
-      <div class="flex items-center gap-5 flex-wrap">
-        ${devices.length === 0
-          ? '<p class="text-sm text-gray-400">Sin datos en este rango.</p>'
-          : donutChart(devices.map(d => ({ label: d.device, value: d.total })), { holeLabel: 'visitas' })}
-        <div class="flex flex-col">${deviceLegend}</div>
-      </div>
-    </div>
-    <div class="card p-5">
-      <h3 class="font-semibold text-gray-900 mb-3">Páginas más vistas</h3>
-      ${(s.top_pages || []).length === 0
-        ? '<p class="text-sm text-gray-400">Sin datos en este rango.</p>'
-        : `<div class="divide-y divide-gray-50">${s.top_pages.map(p => `
-            <div class="flex items-center justify-between py-2 text-sm"><span class="text-gray-700">${esc(p.page)}</span><span class="text-gray-400">${p.total}</span></div>`).join('')}</div>`}
-    </div>
-    <div class="card p-5">
-      <h3 class="font-semibold text-gray-900 mb-3">De dónde llegan</h3>
-      ${(s.top_referrers || []).length === 0
-        ? '<p class="text-sm text-gray-400">Sin referencias externas en este rango (entran directo).</p>'
-        : `<div class="divide-y divide-gray-50">${s.top_referrers.map(r => `
-            <div class="flex items-center justify-between py-2 text-sm"><span class="text-gray-700" title="${esc(r.referrer)}">${esc(referrerHost(r.referrer))}</span><span class="text-gray-400">${r.total}</span></div>`).join('')}</div>`}
-    </div>
-  </div>
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-    <div class="card p-5">
-      <h3 class="font-semibold text-gray-900 mb-3">Profundidad de scroll</h3>
-      ${scrollFunnelHtml(s.scroll_depth || [])}
-    </div>
-    <div class="card p-5">
-      <h3 class="font-semibold text-gray-900 mb-3">Canales de tráfico</h3>
-      <div class="flex items-center gap-5 flex-wrap">
-        ${(s.channels || []).length === 0
-          ? '<p class="text-sm text-gray-400">Sin datos en este rango.</p>'
-          : donutChart((s.channels || []).map(c => ({ label: c.channel, value: c.total })), { holeLabel: 'sesiones' })}
-        <div class="flex flex-col">${(s.channels || []).map((c, i) => `
-          <div class="flex items-center gap-2 text-sm py-1" style="min-width:180px">
-            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${DONUT_COLORS[i % DONUT_COLORS.length]}"></span>
-            <span class="text-gray-700 flex-1">${esc(c.channel)}</span>
-            <span class="text-gray-400 tabular-nums">${c.total}</span>
-          </div>`).join('')}</div>
-      </div>
-    </div>
-    <div class="card p-5">
-      <h3 class="font-semibold text-gray-900 mb-3">Campañas (UTM)</h3>
-      ${(s.top_campaigns || []).length === 0
-        ? '<p class="text-sm text-gray-400">Sin campañas registradas en este rango.</p>'
-        : `<div class="divide-y divide-gray-50">${s.top_campaigns.map(c => `
-            <div class="flex items-center justify-between py-2 text-sm"><span class="text-gray-700">${esc(c.utm_campaign)} <span class="text-gray-400">· ${esc(c.utm_source || '')}</span></span><span class="text-gray-400">${c.sessions}</span></div>`).join('')}</div>`}
-    </div>
-    <div class="card p-5">
-      <h3 class="font-semibold text-gray-900 mb-3">Clicks en navegación</h3>
-      ${(s.top_nav_clicks || []).length === 0
-        ? '<p class="text-sm text-gray-400">Sin clicks de navegación en este rango.</p>'
-        : `<div class="divide-y divide-gray-50">${s.top_nav_clicks.map(n => `
-            <div class="flex items-center justify-between py-2 text-sm"><span class="text-gray-700">${esc(n.seccion)}</span><span class="text-gray-400">${n.total}</span></div>`).join('')}</div>`}
-    </div>
-    <div class="card p-5">
-      <h3 class="font-semibold text-gray-900 mb-3">Clicks a links externos</h3>
-      ${(s.top_outbound_clicks || []).length === 0
-        ? '<p class="text-sm text-gray-400">Sin clicks a sitios externos en este rango.</p>'
-        : `<div class="divide-y divide-gray-50">${s.top_outbound_clicks.map(o => `
-            <div class="flex items-center justify-between py-2 text-sm"><span class="text-gray-700">${esc(o.destino)}</span><span class="text-gray-400">${o.total}</span></div>`).join('')}</div>`}
-    </div>
-  </div>`;
-}
-
-function scrollFunnelHtml(scrollDepth) {
-  const order = ['25', '50', '75', '100'];
-  const byDepth = Object.fromEntries((scrollDepth || []).map(r => [String(r.depth), Number(r.sessions) || 0]));
-  const max = Math.max(1, ...order.map(d => byDepth[d] || 0));
-  if (order.every(d => !byDepth[d])) {
-    return '<p class="text-sm text-gray-400">Sin datos de scroll en este rango.</p>';
+/* Lista de ranking con barra proporcional al valor máximo — reemplaza
+   los divide-y de solo texto para que las listas "top N" se vean como
+   en un dashboard real en vez de una tabla plana. */
+function barListHtml(rows, emptyText) {
+  if (!rows || rows.length === 0) {
+    return `<p class="text-sm text-gray-400">${emptyText}</p>`;
   }
-  return `<div class="flex flex-col gap-3">${order.map(d => {
-    const val = byDepth[d] || 0;
-    const pct = Math.round((val / max) * 100);
+  const max = Math.max(1, ...rows.map(r => r.value));
+  return `<div class="flex flex-col gap-3">${rows.map((r, i) => {
+    const pct = Math.round((r.value / max) * 100);
     return `
     <div>
       <div class="flex justify-between text-sm mb-1">
-        <span class="text-gray-700">${d}% de la página</span>
-        <span class="text-gray-400 tabular-nums">${val} sesiones</span>
+        <span class="text-gray-700 truncate"${r.title ? ` title="${esc(r.title)}"` : ''}>${esc(r.label)}</span>
+        <span class="text-gray-500 font-semibold tabular-nums shrink-0 ml-2">${r.value}</span>
       </div>
-      <div class="bg-gray-100 rounded-md h-2.5 overflow-hidden">
-        <div class="h-full rounded-md bg-primary-600" style="width:${pct}%"></div>
+      <div class="bg-gray-100 rounded-md h-2 overflow-hidden">
+        <div class="h-full rounded-md" style="width:${pct}%;background:${DONUT_COLORS[i % DONUT_COLORS.length]}"></div>
       </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+/* Embudo real: cada escalón se dibuja como una barra centrada cuyo
+   ancho es proporcional al primer paso (25% de scroll = 100% de la
+   base), con el % de caída respecto al escalón anterior en medio. */
+function funnelHtml(scrollDepth) {
+  const order = ['25', '50', '75', '100'];
+  const byDepth = Object.fromEntries((scrollDepth || []).map(r => [String(r.depth), Number(r.sessions) || 0]));
+  const values = order.map(d => byDepth[d] || 0);
+  if (!values.some(v => v > 0)) {
+    return '<p class="text-sm text-gray-400">Sin datos de scroll en este rango.</p>';
+  }
+  const base = values[0] > 0 ? values[0] : Math.max(...values, 1);
+  return `<div class="flex flex-col items-center">${order.map((d, i) => {
+    const val = values[i];
+    const pctOfBase = Math.round((val / base) * 100);
+    const prevVal = i > 0 ? values[i - 1] : null;
+    const drop = (prevVal && prevVal > 0) ? Math.round(((prevVal - val) / prevVal) * 100) : null;
+    return `
+    ${drop !== null ? `<div class="text-xs text-gray-400 py-1.5">▼ ${drop}% de caída respecto al paso anterior</div>` : ''}
+    <div class="w-full flex justify-center">
+      <div class="h-11 rounded-lg flex items-center justify-center text-white text-sm font-bold px-3" style="width:${Math.max(pctOfBase, 12)}%;background:${DONUT_COLORS[i % DONUT_COLORS.length]}">${val} sesiones</div>
+    </div>
+    <div class="w-full flex justify-between text-xs text-gray-400 mt-1 mb-1">
+      <span>${d}% de la página</span><span>${pctOfBase}% del primer paso</span>
     </div>`;
   }).join('')}</div>`;
 }
