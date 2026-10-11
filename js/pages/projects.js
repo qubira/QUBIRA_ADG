@@ -5,15 +5,17 @@ import { toast, showModal, closeModal, confirmModal, pageHeader,
          sanitizeRichText, richTextToolbar, wireRichEditor } from '../utils.js';
 
 let _projects = [], _users = [], _docTypes = [], _families = [], _filter = { status: '', search: '', family: '' };
+let _clients = [], _docNumbers = [], _companyNames = [];
 let _reqs = [], _reqProjectId = null;
 let _groupByFamily = false;
 
 /* Un solo listener delegado (no uno por apertura de modal) para cerrar
-   el desplegable de familia al hacer clic fuera — mismo patrón que el
-   selector de tecnologías en project-detail.js. */
+   cualquier combobox (familia, cliente, número de documento, nombre de
+   empresa) al hacer clic fuera — mismo patrón que el selector de
+   tecnologías en project-detail.js. */
 document.addEventListener('click', e => {
-  document.querySelectorAll('.family-dropdown:not(.hidden)').forEach(dd => {
-    if (!dd.closest('[data-family-wrap]')?.contains(e.target)) dd.classList.add('hidden');
+  document.querySelectorAll('.combo-dropdown:not(.hidden)').forEach(dd => {
+    if (!dd.closest('[data-combo-wrap]')?.contains(e.target)) dd.classList.add('hidden');
   });
 });
 
@@ -24,6 +26,9 @@ export function render() {
   api.get('/users').then(u => { _users = u; }).catch(() => {});
   api.get('/document-types').then(d => { _docTypes = d; }).catch(() => {});
   api.get('/projects/families').then(f => { _families = f; }).catch(() => {});
+  api.get('/projects/clients').then(c => { _clients = c; }).catch(() => {});
+  api.get('/projects/document-numbers').then(d => { _docNumbers = d; }).catch(() => {});
+  api.get('/projects/company-names').then(c => { _companyNames = c; }).catch(() => {});
 }
 
 function load() {
@@ -263,7 +268,10 @@ function openModal(editing = null) {
         <input type="text" name="company_logo_url" id="logo-url-input" placeholder="o pega una URL de imagen" class="input text-xs py-1.5 mt-2" value="${esc(f.company_logo||'')}">
         <div class="mt-3">
           <label class="label">Nombre de la Empresa</label>
-          <input class="input" name="company_name" value="${esc(f.company_name||'')}" placeholder="Razón social">
+          <div class="relative" data-combo-wrap="company_name">
+            <input class="input" name="company_name" id="company-name-input" autocomplete="off" value="${esc(f.company_name||'')}" placeholder="Razón social">
+            <div id="company-name-dropdown" class="combo-dropdown hidden absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto z-20"></div>
+          </div>
         </div>
       </div>
 
@@ -277,7 +285,10 @@ function openModal(editing = null) {
           </div>
           <div class="col-span-2">
             <label class="label">Cliente *</label>
-            <input class="input" name="client" required value="${esc(f.client)}" placeholder="Nombre del cliente o empresa">
+            <div class="relative" data-combo-wrap="client">
+              <input class="input" name="client" id="client-input" required autocomplete="off" value="${esc(f.client)}" placeholder="Nombre del cliente o empresa">
+              <div id="client-dropdown" class="combo-dropdown hidden absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto z-20"></div>
+            </div>
           </div>
           <div>
             <label class="label">Tipo de Documento</label>
@@ -288,7 +299,10 @@ function openModal(editing = null) {
           </div>
           <div>
             <label class="label">Número de Documento</label>
-            <input class="input" name="id_document_number" value="${esc(f.id_document_number||'')}" placeholder="Ej: 1234567890">
+            <div class="relative" data-combo-wrap="doc_number">
+              <input class="input" name="id_document_number" id="doc-number-input" autocomplete="off" value="${esc(f.id_document_number||'')}" placeholder="Ej: 1234567890">
+              <div id="doc-number-dropdown" class="combo-dropdown hidden absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto z-20"></div>
+            </div>
           </div>
           <div>
             <label class="label">Tipo de Proyecto</label>
@@ -309,9 +323,9 @@ function openModal(editing = null) {
           </div>
           <div>
             <label class="label">Familia de Proyecto</label>
-            <div class="relative" data-family-wrap>
+            <div class="relative" data-combo-wrap="family">
               <input class="input" name="family" id="family-input" autocomplete="off" value="${esc(f.family||'')}" placeholder="Ej: GEOVS">
-              <div id="family-dropdown" class="family-dropdown hidden absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto z-20"></div>
+              <div id="family-dropdown" class="combo-dropdown hidden absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto z-20"></div>
             </div>
             <p class="text-xs text-gray-400 mt-1">Vincula proyectos que son variantes del mismo producto (web, móvil, escritorio)</p>
           </div>
@@ -437,7 +451,7 @@ function openModal(editing = null) {
     else { img.classList.add('hidden'); placeholder.classList.remove('hidden'); }
   });
 
-  wireFamilyPicker();
+  wireAllComboPickers();
 
   if (editing) {
     loadRequirements(editing.id);
@@ -472,28 +486,29 @@ function openModal(editing = null) {
 }
 
 /* Reemplaza el <input list>+<datalist> nativo (su desplegable lo
-   dibuja el navegador/SO y no se puede re-estilar) por un combobox
-   propio, mismo patrón que el selector de tecnologías. */
-function wireFamilyPicker() {
-  const input = document.getElementById('family-input');
-  const dropdown = document.getElementById('family-dropdown');
+   dibuja el navegador/SO y no se puede re-estilar, y solo recuerda lo
+   que YA tipeaste vos en tu propio navegador, no lo que cargó
+   cualquier otra persona) por un combobox propio alimentado con los
+   valores reales ya usados en otros proyectos — mismo patrón que el
+   selector de tecnologías. getOptions(query) debe devolver hasta 8
+   objetos { value, hint? }. */
+function wireComboPicker(inputId, dropdownId, getOptions) {
+  const input = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropdownId);
   if (!input || !dropdown) return;
 
   const closeDropdown = () => dropdown.classList.add('hidden');
   const openDropdown = () => {
-    const q = input.value.trim().toLowerCase();
-    const options = _families
-      .filter(fm => !q || fm.family.toLowerCase().includes(q))
-      .slice(0, 8);
+    const options = getOptions(input.value.trim().toLowerCase()).slice(0, 8);
     if (!options.length) { closeDropdown(); return; }
-    dropdown.innerHTML = options.map(fm => `
-      <button type="button" class="family-option w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 text-left" data-name="${esc(fm.family)}">
-        <span class="truncate">${esc(fm.family)}</span>
-        <span class="ml-auto text-xs text-gray-400">${fm.count}</span>
+    dropdown.innerHTML = options.map(opt => `
+      <button type="button" class="combo-option w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 text-left" data-value="${esc(opt.value)}">
+        <span class="truncate">${esc(opt.value)}</span>
+        ${opt.hint ? `<span class="ml-auto text-xs text-gray-400 truncate" style="max-width:40%">${esc(opt.hint)}</span>` : ''}
       </button>`).join('');
-    dropdown.querySelectorAll('.family-option').forEach(opt => {
-      opt.addEventListener('click', () => {
-        input.value = opt.dataset.name;
+    dropdown.querySelectorAll('.combo-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        input.value = btn.dataset.value;
         closeDropdown();
       });
     });
@@ -503,6 +518,24 @@ function wireFamilyPicker() {
   input.addEventListener('input', openDropdown);
   input.addEventListener('focus', openDropdown);
   input.addEventListener('keydown', e => { if (e.key === 'Escape') closeDropdown(); });
+}
+
+function wireAllComboPickers() {
+  wireComboPicker('family-input', 'family-dropdown', q =>
+    _families.filter(fm => !q || fm.family.toLowerCase().includes(q))
+      .map(fm => ({ value: fm.family, hint: String(fm.count) })));
+
+  wireComboPicker('client-input', 'client-dropdown', q =>
+    _clients.filter(c => !q || c.client.toLowerCase().includes(q))
+      .map(c => ({ value: c.client, hint: String(c.count) })));
+
+  wireComboPicker('doc-number-input', 'doc-number-dropdown', q =>
+    _docNumbers.filter(d => !q || d.number.toLowerCase().includes(q))
+      .map(d => ({ value: d.number, hint: d.client })));
+
+  wireComboPicker('company-name-input', 'company-name-dropdown', q =>
+    _companyNames.filter(c => !q || c.company_name.toLowerCase().includes(q))
+      .map(c => ({ value: c.company_name, hint: String(c.count) })));
 }
 
 async function loadRequirements(projectId) {
