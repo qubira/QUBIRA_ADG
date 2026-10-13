@@ -241,7 +241,8 @@ function openModal(editing = null) {
   const title = editing ? 'Editar Proyecto' : 'Nuevo Proyecto';
   const f = editing || { name:'', client:'', description:'', status:'pending', progress:0, budget:'', currency:'USD',
     start_date:'', end_date:'', responsible_id:'', priority:'medium', company_name:'', company_logo:'',
-    id_document_type:'dni', id_document_number:'', project_type:'web', github_url:'', website_url:'', family:'' };
+    id_document_type:'dni', id_document_number:'', project_type:'web', github_url:'', website_url:'', family:'',
+    show_to_comercial:false, commercial_offer_type:'', commercial_price:'', commercial_notes:'' };
 
   const userOpts = _users.map(u => `<option value="${u.id}" ${String(f.responsible_id)===String(u.id)?'selected':''}>${esc(u.name)}</option>`).join('');
   const docOpts = buildDocOpts(f.id_document_type);
@@ -343,6 +344,33 @@ function openModal(editing = null) {
           </div>
         </div>
 
+        ${sectionTitle('Visibilidad Comercial')}
+        <div class="mb-5">
+          <label class="flex items-center gap-2 mb-3 cursor-pointer select-none">
+            <input type="checkbox" id="show-to-comercial-check" ${f.show_to_comercial?'checked':''} class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+            <span class="text-sm font-medium text-gray-700">Mostrar este producto en el panel Comercial</span>
+          </label>
+          <div id="comercial-fields" class="grid grid-cols-2 gap-3 ${f.show_to_comercial?'':'opacity-50'}">
+            <div>
+              <label class="label">Tipo de Oferta</label>
+              <select class="input" name="commercial_offer_type" id="commercial-offer-select" ${f.show_to_comercial?'':'disabled'}>
+                <option value="">Sin definir</option>
+                <option value="venta" ${f.commercial_offer_type==='venta'?'selected':''}>Venta</option>
+                <option value="alquiler" ${f.commercial_offer_type==='alquiler'?'selected':''}>Alquiler</option>
+                <option value="venta_alquiler" ${f.commercial_offer_type==='venta_alquiler'?'selected':''}>Venta o alquiler</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Precio Referencial</label>
+              <input class="input" type="number" name="commercial_price" id="commercial-price-input" min="0" step="0.01" value="${f.commercial_price||''}" placeholder="Opcional" ${f.show_to_comercial?'':'disabled'}>
+            </div>
+            <div class="col-span-2">
+              <label class="label">Notas para Comercial</label>
+              <textarea class="input resize-none" name="commercial_notes" id="commercial-notes-input" rows="2" placeholder="Opcional — detalles útiles para quien venda u ofrezca este producto" ${f.show_to_comercial?'':'disabled'}>${esc(f.commercial_notes||'')}</textarea>
+            </div>
+          </div>
+        </div>
+
         ${sectionTitle('Presupuesto y Fechas')}
         <div class="grid grid-cols-2 gap-3 mb-5">
           <div>
@@ -410,6 +438,14 @@ function openModal(editing = null) {
   document.getElementById('modal-cancel').addEventListener('click', closeModal);
   document.getElementById('doc-type-add').addEventListener('click', () => addCustomDocType(document.getElementById('doc-type-select')));
 
+  document.getElementById('show-to-comercial-check').addEventListener('change', e => {
+    const on = e.target.checked;
+    document.getElementById('comercial-fields').classList.toggle('opacity-50', !on);
+    ['commercial-offer-select', 'commercial-price-input', 'commercial-notes-input'].forEach(id => {
+      document.getElementById(id).disabled = !on;
+    });
+  });
+
   document.getElementById('logo-dropzone').addEventListener('click', () => {
     document.getElementById('logo-file-input').click();
   });
@@ -468,6 +504,7 @@ function openModal(editing = null) {
   document.getElementById('project-form').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
+    fd.set('show_to_comercial', document.getElementById('show-to-comercial-check').checked ? 'true' : 'false');
     try {
       if (editing) {
         await api.put(`/projects/${editing.id}`, fd);
