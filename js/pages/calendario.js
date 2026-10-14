@@ -8,10 +8,9 @@ const MEETING_TYPES = ['Coordinación administrativa','Reunión con cliente','Re
 const EXTERNAL_KINDS = [['cliente','Cliente'],['postulante','Postulante'],['proveedor','Proveedor'],['consultor','Consultor'],['otro','Otro']];
 const STATUS_LABEL = { scheduled:'Programada', confirmed:'Confirmada', in_progress:'En curso', completed:'Finalizada', cancelled:'Cancelada' };
 
-let _mode = 'area';               // 'area' | 'mine' | 'week'
+let _mode = 'area';               // 'area' | 'mine' | 'week' | 'weekArea'
 let _filters = { area: OWN_AREA, participant: '', type: '', date_from: todayISO(), date_to: '', status: '' };
 let _meetings = [];
-let _formOpen = false;
 let _editingId = null;
 let _conflicts = [];
 let _selectedParticipants = [];   // [{user_id, nombre, apellidos, area, cargo, role?}]
@@ -63,14 +62,22 @@ export function render() {
 async function load() {
   try {
     let params;
-    if (_mode === 'week') {
-      /* Solo las reuniones propias de quien está logueado — el horario
-         de una misma persona nunca se solapa (ya se valida al crear/
-         editar), así que esta vista nunca va a mostrar bloques
-         superpuestos. Mostrar el área completa sí podría solaparse
-         (dos personas distintas con reuniones a la misma hora). */
+    if (_mode === 'week' || _mode === 'weekArea') {
       const { monday, sunday } = weekBounds(_weekOffset);
-      params = { date_from: isoDate(monday), date_to: isoDate(sunday), mine: 'true' };
+      params = { date_from: isoDate(monday), date_to: isoDate(sunday) };
+      if (_mode === 'week') {
+        /* Solo las reuniones propias de quien está logueado — el horario
+           de una misma persona nunca se solapa (ya se valida al crear/
+           editar), así que esta vista nunca va a mostrar bloques
+           superpuestos. */
+        params.mine = 'true';
+      } else {
+        /* Vista semana general: todas las reuniones del área, de
+           cualquier participante — estas sí pueden solaparse entre sí
+           (dos personas distintas con reuniones a la misma hora), así
+           que el render usa un layout de columnas para no superponerlas. */
+        params.area = OWN_AREA;
+      }
     } else {
       params = { date_from: _filters.date_from || undefined, date_to: _filters.date_to || undefined, status: _filters.status || undefined };
       if (_mode === 'mine') {
@@ -80,7 +87,7 @@ async function load() {
       }
     }
     let meetings = await api.get('/calendar/meetings', params);
-    if (_mode !== 'week') {
+    if (_mode !== 'week' && _mode !== 'weekArea') {
       if (_filters.participant) {
         const q = _filters.participant.toLowerCase();
         meetings = meetings.filter(m => (m.participants || []).some(p =>
@@ -111,8 +118,9 @@ function renderPage() {
       <button type="button" class="cal-tab px-4 py-2 text-sm font-medium border-b-2 ${_mode==='area' ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-mode="area">Calendario — ADG</button>
       <button type="button" class="cal-tab px-4 py-2 text-sm font-medium border-b-2 ${_mode==='mine' ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-mode="mine">Mi agenda</button>
       <button type="button" class="cal-tab px-4 py-2 text-sm font-medium border-b-2 ${_mode==='week' ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-mode="week">Vista semana</button>
+      <button type="button" class="cal-tab px-4 py-2 text-sm font-medium border-b-2 ${_mode==='weekArea' ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-mode="weekArea">Vista semana general</button>
     </div>
-    ${_mode === 'week' ? '' : `
+    ${(_mode === 'week' || _mode === 'weekArea') ? '' : `
     <div class="flex flex-wrap gap-3 mt-4">
       ${_mode === 'area' ? `
         <select id="f-area" class="input w-auto">
@@ -137,11 +145,8 @@ function renderPage() {
   </div>
 
   <div class="mt-5">
-  ${_mode === 'week' ? weekViewHtml() : `
-  <div class="grid grid-cols-1 ${_formOpen ? 'lg:grid-cols-[1fr_380px]' : ''} gap-5 items-start">
-    <div id="cal-list">${listHtml()}</div>
-    ${_formOpen ? `<div id="cal-form-panel" class="lg:sticky self-start" style="top:132px">${formHtml()}</div>` : ''}
-  </div>`}
+  ${_mode === 'week' ? weekViewHtml(false) : _mode === 'weekArea' ? weekViewHtml(true) : `
+  <div id="cal-list">${listHtml()}</div>`}
   </div>`;
 
   wirePage();
@@ -163,7 +168,42 @@ function meetingTypeColor(type) { return MEETING_TYPE_COLORS[type] || 'bg-slate-
 
 const WEEK_ROW_H = 48; // px por hora
 
-function weekViewHtml() {
+/* Reparte eventos que se solapan en el tiempo en columnas lado a lado
+   (como Google Calendar), para que nunca se dibujen uno encima del
+   otro. Agrupa eventos en "racimos" de solapamiento consecutivo y
+   dentro de cada racimo asigna la primera columna libre a cada evento
+   (algoritmo greedy por orden de inicio). */
+function layoutDayEvents(events) {
+  const sorted = [...events].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+  const placed = [];
+  let cluster = [];
+  let clusterEnd = -Infinity;
+
+  const flushCluster = () => {
+    if (!cluster.length) return;
+    const colEnds = [];
+    cluster.forEach(ev => {
+      let col = colEnds.findIndex(end => end <= ev.startMin);
+      if (col === -1) { col = colEnds.length; colEnds.push(ev.endMin); }
+      else { colEnds[col] = ev.endMin; }
+      placed.push({ ev, col });
+    });
+    const totalCols = colEnds.length;
+    placed.slice(-cluster.length).forEach(p => { p.totalCols = totalCols; });
+    cluster = []; clusterEnd = -Infinity;
+  };
+
+  sorted.forEach(ev => {
+    if (cluster.length && ev.startMin >= clusterEnd) flushCluster();
+    cluster.push(ev);
+    clusterEnd = Math.max(clusterEnd, ev.endMin);
+  });
+  flushCluster();
+
+  return placed;
+}
+
+function weekViewHtml(general) {
   const { monday, days } = weekBounds(_weekOffset);
   const hours = [];
   for (let h = WEEK_START_HOUR; h < WEEK_END_HOUR; h++) hours.push(h);
@@ -173,18 +213,34 @@ function weekViewHtml() {
   const dayCols = days.map((d, i) => {
     const iso = isoDate(d);
     const isToday = iso === todayIso;
-    const dayMeetings = _meetings.filter(m => m.meeting_date === iso && m.visibility !== 'busy_only');
-    const blocks = dayMeetings.map(m => {
-      const [sh, sm] = m.start_time.slice(0,5).split(':').map(Number);
-      const [eh, em] = m.end_time.slice(0,5).split(':').map(Number);
-      const startMin = Math.max(0, (sh - WEEK_START_HOUR) * 60 + sm);
-      const endMin = Math.min((WEEK_END_HOUR - WEEK_START_HOUR) * 60, (eh - WEEK_START_HOUR) * 60 + em);
+    const dayMeetings = _meetings
+      .filter(m => m.meeting_date === iso && m.visibility !== 'busy_only')
+      .map(m => {
+        const [sh, sm] = m.start_time.slice(0,5).split(':').map(Number);
+        const [eh, em] = m.end_time.slice(0,5).split(':').map(Number);
+        return {
+          m,
+          startMin: Math.max(0, (sh - WEEK_START_HOUR) * 60 + sm),
+          endMin: Math.min((WEEK_END_HOUR - WEEK_START_HOUR) * 60, (eh - WEEK_START_HOUR) * 60 + em),
+        };
+      });
+    const blocks = layoutDayEvents(dayMeetings).map(({ ev, col, totalCols }) => {
+      const { m, startMin, endMin } = ev;
       const top = (startMin / 60) * WEEK_ROW_H;
       const height = Math.max(20, ((endMin - startMin) / 60) * WEEK_ROW_H);
+      const widthPct = 100 / totalCols;
+      const leftPct = col * widthPct;
+      const posStyle = totalCols > 1
+        ? `left:calc(${leftPct}% + 1px);width:calc(${widthPct}% - 2px)`
+        : 'left:2px;right:2px';
+      const internalNames = general
+        ? (m.participants || []).filter(p => p.participant_type === 'internal').map(p => p.user_name).filter(Boolean)
+        : [];
       return `
-        <button type="button" class="cal-week-event absolute left-0.5 right-0.5 rounded-md ${meetingTypeColor(m.meeting_type)} text-white text-left px-1.5 py-0.5 overflow-hidden shadow-sm hover:brightness-110" data-id="${m.id}" style="top:${top}px;height:${height}px">
+        <button type="button" class="cal-week-event absolute rounded-md ${meetingTypeColor(m.meeting_type)} text-white text-left px-1.5 py-0.5 overflow-hidden shadow-sm hover:brightness-110" data-id="${m.id}" style="top:${top}px;height:${height}px;${posStyle}">
           <div class="text-[10px] font-semibold leading-tight truncate">${esc(m.title)}</div>
           <div class="text-[9px] opacity-90 leading-tight">${m.start_time.slice(0,5)}–${m.end_time.slice(0,5)}</div>
+          ${internalNames.length ? `<div class="text-[9px] opacity-80 leading-tight truncate">${esc(internalNames.join(', '))}</div>` : ''}
         </button>`;
     }).join('');
     return `
@@ -206,6 +262,7 @@ function weekViewHtml() {
 
   return `
   <div class="card p-0 overflow-hidden">
+    ${general ? `<div class="px-4 pt-3 text-xs font-medium text-gray-500">Todas las reuniones del área ${esc(OWN_AREA)} — eventos que se cruzan en horario se muestran lado a lado</div>` : ''}
     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
       <button type="button" id="week-today-btn" class="btn-secondary text-xs px-3 py-1.5">Hoy</button>
       <div class="flex items-center gap-2">
@@ -282,11 +339,6 @@ function formHtml() {
   const fv = (name, fallback) => esc(_draft[name] ?? fallback ?? '');
   const currentImage = _draft.image_url !== undefined ? _draft.image_url : (editing?.image_url || null);
   return `
-  <div class="card p-5">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="font-semibold text-gray-900">${editing ? 'Editar reunión' : 'Nueva reunión'}</h3>
-      <button type="button" id="cal-form-close" class="p-1 rounded hover:bg-gray-100 text-gray-400">${icon('close',18)}</button>
-    </div>
     <form id="cal-form" class="space-y-3">
       <div>
         <label class="text-xs font-medium text-gray-600">Nombre de la reunión *</label>
@@ -362,8 +414,16 @@ function formHtml() {
         <button type="submit" id="cal-save-btn" class="btn-primary text-sm flex-1 justify-center" ${_conflicts.length ? 'disabled' : ''}>${editing ? 'Guardar cambios' : 'Guardar reunión'}</button>
         <button type="button" id="cal-form-cancel" class="btn-secondary text-sm">Cancelar</button>
       </div>
-    </form>
-  </div>`;
+    </form>`;
+}
+
+function openFormModal() {
+  const editing = _meetings.find(m => m.id === _editingId);
+  showModal(editing ? 'Editar reunión' : 'Nueva reunión', formHtml(), 'lg');
+  document.getElementById('cal-form-cancel')?.addEventListener('click', closeModal);
+  wireFormExtras();
+  wireFormDraftCapture();
+  wireImageControls();
 }
 
 function selectedParticipantsHtml() {
@@ -398,7 +458,7 @@ function conflictBannerHtml() {
 function wirePage() {
   document.querySelectorAll('.cal-tab').forEach(btn => btn.addEventListener('click', () => {
     _mode = btn.dataset.mode;
-    if (_mode === 'week') _weekOffset = 0;
+    if (_mode === 'week' || _mode === 'weekArea') _weekOffset = 0;
     load();
   }));
 
@@ -430,17 +490,8 @@ function wirePage() {
   const addBtn = document.getElementById('cal-add-btn');
   if (addBtn) addBtn.addEventListener('click', () => {
     _editingId = null; _selectedParticipants = []; _externalParticipants = []; _conflicts = []; _draft = {};
-    _formOpen = true; renderPage();
+    openFormModal();
   });
-
-  ['cal-form-close', 'cal-form-cancel'].forEach(id => {
-    const btn = document.getElementById(id);
-    if (btn) btn.addEventListener('click', () => { _formOpen = false; _editingId = null; _draft = {}; renderPage(); });
-  });
-
-  wireFormExtras();
-  wireFormDraftCapture();
-  wireImageControls();
 
   document.querySelectorAll('.cal-view-btn').forEach(btn => btn.addEventListener('click', () => viewMeeting(btn.dataset.id)));
   document.querySelectorAll('.cal-edit-btn').forEach(btn => btn.addEventListener('click', () => editMeeting(btn.dataset.id)));
@@ -466,10 +517,11 @@ function wireFormDraftCapture() {
   form.addEventListener('submit', submitForm);
 }
 
-function rerenderFormPanel() {
-  const panel = document.getElementById('cal-form-panel');
-  if (!panel) return;
-  panel.innerHTML = formHtml();
+function rerenderFormModal() {
+  const body = document.getElementById('modal-body');
+  if (!body) return;
+  body.innerHTML = formHtml();
+  document.getElementById('cal-form-cancel')?.addEventListener('click', closeModal);
   wireFormExtras();
   wireFormDraftCapture();
   wireImageControls();
@@ -481,7 +533,7 @@ function wireImageControls() {
   const imageRemove = document.getElementById('cal-image-remove');
   if (imageRemove) imageRemove.addEventListener('click', () => {
     _draft.image_url = null;
-    rerenderFormPanel();
+    rerenderFormModal();
   });
 }
 
@@ -495,7 +547,7 @@ async function handleImageUpload(e) {
     fd.append('image', file);
     const data = await api.post('/calendar/meetings/image', fd);
     _draft.image_url = data.url;
-    rerenderFormPanel();
+    rerenderFormModal();
     toast('Imagen subida');
   } catch (err) {
     if (status) status.textContent = '';
@@ -635,7 +687,7 @@ async function submitForm(e) {
       await api.post('/calendar/meetings', payload);
       toast('Reunión programada');
     }
-    _formOpen = false; _editingId = null; _conflicts = []; _draft = {};
+    closeModal(); _editingId = null; _conflicts = []; _draft = {};
     await load();
   } catch (err) {
     if (err.response?.data?.conflicts) {
@@ -661,8 +713,7 @@ function editMeeting(id) {
     .map(p => ({ name: p.external_name, kind: p.external_kind }));
   _conflicts = [];
   _draft = {};
-  _formOpen = true;
-  renderPage();
+  openFormModal();
 }
 
 async function cancelMeeting(id) {
@@ -681,7 +732,7 @@ async function deleteMeeting(id) {
   try {
     await api.delete(`/calendar/meetings/${id}`);
     toast('Reunión eliminada');
-    if (_editingId === id) { _formOpen = false; _editingId = null; }
+    if (_editingId === id) { closeModal(); _editingId = null; }
     await load();
   } catch (err) { toast(err.message || 'Error', 'error'); }
 }

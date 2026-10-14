@@ -217,7 +217,7 @@ export function showModal(title, content, size = 'md', footer = '') {
           <h3 class="font-semibold text-gray-900 text-lg">${title}</h3>
           <button id="modal-close-btn" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 text-xl leading-none">&times;</button>
         </div>
-        <div class="overflow-y-auto flex-1 px-6 py-4">${content}</div>
+        <div id="modal-body" class="overflow-y-auto flex-1 px-6 py-4">${content}</div>
         ${footer ? `<div class="px-6 py-4 border-t border-gray-100 shrink-0">${footer}</div>` : ''}
       </div>
     </div>`;
