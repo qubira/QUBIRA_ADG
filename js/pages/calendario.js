@@ -64,8 +64,13 @@ async function load() {
   try {
     let params;
     if (_mode === 'week') {
+      /* Solo las reuniones propias de quien está logueado — el horario
+         de una misma persona nunca se solapa (ya se valida al crear/
+         editar), así que esta vista nunca va a mostrar bloques
+         superpuestos. Mostrar el área completa sí podría solaparse
+         (dos personas distintas con reuniones a la misma hora). */
       const { monday, sunday } = weekBounds(_weekOffset);
-      params = { date_from: isoDate(monday), date_to: isoDate(sunday), area: _filters.area === 'ALL' ? undefined : _filters.area };
+      params = { date_from: isoDate(monday), date_to: isoDate(sunday), mine: 'true' };
     } else {
       params = { date_from: _filters.date_from || undefined, date_to: _filters.date_to || undefined, status: _filters.status || undefined };
       if (_mode === 'mine') {
@@ -101,47 +106,60 @@ function renderPage() {
   ${pageHeader('Calendario — ADG', `${_meetings.length} reunión${_meetings.length !== 1 ? 'es' : ''}`,
     `<button id="cal-add-btn" class="btn-primary">${icon('add',20)} Agregar reunión</button>`)}
 
-  <div class="flex items-center gap-2 mb-4 border-b border-gray-200">
-    <button type="button" class="cal-tab px-4 py-2 text-sm font-medium border-b-2 ${_mode==='area' ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-mode="area">Calendario — ADG</button>
-    <button type="button" class="cal-tab px-4 py-2 text-sm font-medium border-b-2 ${_mode==='mine' ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-mode="mine">Mi agenda</button>
-    <button type="button" class="cal-tab px-4 py-2 text-sm font-medium border-b-2 ${_mode==='week' ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-mode="week">Vista semana</button>
-  </div>
-
-  ${_mode === 'week' ? weekViewHtml() : `
-  <div class="flex flex-wrap gap-3 mb-5">
-    ${_mode === 'area' ? `
-      <select id="f-area" class="input w-auto">
-        ${AREAS.map(([k,l]) => `<option value="${k}" ${_filters.area===k?'selected':''}>${l}</option>`).join('')}
-        ${isPrivileged() ? `<option value="ALL" ${_filters.area==='ALL'?'selected':''}>Todas las áreas</option>` : ''}
-      </select>` : ''}
-    <div class="relative min-w-[180px]">
-      <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" style="font-size:16px">search</span>
-      <input id="f-participant" class="input pl-8" placeholder="Buscar participante..." value="${esc(_filters.participant)}">
+  <div class="sticky top-0 z-20 bg-gray-50 pt-1 pb-3 -mx-6 px-6">
+    <div class="flex items-center gap-2 border-b border-gray-200">
+      <button type="button" class="cal-tab px-4 py-2 text-sm font-medium border-b-2 ${_mode==='area' ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-mode="area">Calendario — ADG</button>
+      <button type="button" class="cal-tab px-4 py-2 text-sm font-medium border-b-2 ${_mode==='mine' ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-mode="mine">Mi agenda</button>
+      <button type="button" class="cal-tab px-4 py-2 text-sm font-medium border-b-2 ${_mode==='week' ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-mode="week">Vista semana</button>
     </div>
-    <select id="f-type" class="input w-auto">
-      <option value="">Todos los tipos</option>
-      ${MEETING_TYPES.map(t => `<option value="${t}" ${_filters.type===t?'selected':''}>${t}</option>`).join('')}
-    </select>
-    <input type="date" id="f-date-from" class="input w-auto" value="${_filters.date_from}">
-    <input type="date" id="f-date-to" class="input w-auto" value="${_filters.date_to}">
-    <select id="f-status" class="input w-auto">
-      <option value="">Todos los estados</option>
-      ${Object.entries(STATUS_LABEL).map(([k,l]) => `<option value="${k}" ${_filters.status===k?'selected':''}>${l}</option>`).join('')}
-    </select>
+    ${_mode === 'week' ? '' : `
+    <div class="flex flex-wrap gap-3 mt-4">
+      ${_mode === 'area' ? `
+        <select id="f-area" class="input w-auto">
+          ${AREAS.map(([k,l]) => `<option value="${k}" ${_filters.area===k?'selected':''}>${l}</option>`).join('')}
+          ${isPrivileged() ? `<option value="ALL" ${_filters.area==='ALL'?'selected':''}>Todas las áreas</option>` : ''}
+        </select>` : ''}
+      <div class="relative min-w-[180px]">
+        <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" style="font-size:16px">search</span>
+        <input id="f-participant" class="input pl-8" placeholder="Buscar participante..." value="${esc(_filters.participant)}">
+      </div>
+      <select id="f-type" class="input w-auto">
+        <option value="">Todos los tipos</option>
+        ${MEETING_TYPES.map(t => `<option value="${t}" ${_filters.type===t?'selected':''}>${t}</option>`).join('')}
+      </select>
+      <input type="date" id="f-date-from" class="input w-auto" value="${_filters.date_from}">
+      <input type="date" id="f-date-to" class="input w-auto" value="${_filters.date_to}">
+      <select id="f-status" class="input w-auto">
+        <option value="">Todos los estados</option>
+        ${Object.entries(STATUS_LABEL).map(([k,l]) => `<option value="${k}" ${_filters.status===k?'selected':''}>${l}</option>`).join('')}
+      </select>
+    </div>`}
   </div>
 
+  <div class="mt-5">
+  ${_mode === 'week' ? weekViewHtml() : `
   <div class="grid grid-cols-1 ${_formOpen ? 'lg:grid-cols-[1fr_380px]' : ''} gap-5 items-start">
     <div id="cal-list">${listHtml()}</div>
-    ${_formOpen ? `<div id="cal-form-panel" class="lg:sticky lg:top-4 self-start">${formHtml()}</div>` : ''}
-  </div>`}`;
+    ${_formOpen ? `<div id="cal-form-panel" class="lg:sticky self-start" style="top:132px">${formHtml()}</div>` : ''}
+  </div>`}
+  </div>`;
 
   wirePage();
 }
 
-const AREA_COLORS = {
-  ADG: 'bg-indigo-500', TI: 'bg-blue-500', RRHH: 'bg-emerald-500', SOPORTE: 'bg-amber-500',
+/* En la vista semana solo se muestran las reuniones propias (ver
+   load()), así que colorear por área no sirve para distinguirlas —
+   casi siempre serían todas del mismo color. Se colorea por tipo de
+   reunión en su lugar, que varía más seguido. */
+const MEETING_TYPE_COLORS = {
+  'Coordinación administrativa': 'bg-indigo-500',
+  'Reunión con cliente': 'bg-emerald-500',
+  'Reunión con proveedor': 'bg-amber-500',
+  'Planificación': 'bg-sky-500',
+  'Revisión': 'bg-rose-500',
+  'Otro': 'bg-violet-500',
 };
-function areaColor(area) { return AREA_COLORS[String(area || '').toUpperCase()] || 'bg-gray-500'; }
+function meetingTypeColor(type) { return MEETING_TYPE_COLORS[type] || 'bg-slate-500'; }
 
 const WEEK_ROW_H = 48; // px por hora
 
@@ -164,7 +182,7 @@ function weekViewHtml() {
       const top = (startMin / 60) * WEEK_ROW_H;
       const height = Math.max(20, ((endMin - startMin) / 60) * WEEK_ROW_H);
       return `
-        <button type="button" class="cal-week-event absolute left-0.5 right-0.5 rounded-md ${areaColor(m.area)} text-white text-left px-1.5 py-0.5 overflow-hidden shadow-sm hover:brightness-110" data-id="${m.id}" style="top:${top}px;height:${height}px">
+        <button type="button" class="cal-week-event absolute left-0.5 right-0.5 rounded-md ${meetingTypeColor(m.meeting_type)} text-white text-left px-1.5 py-0.5 overflow-hidden shadow-sm hover:brightness-110" data-id="${m.id}" style="top:${top}px;height:${height}px">
           <div class="text-[10px] font-semibold leading-tight truncate">${esc(m.title)}</div>
           <div class="text-[9px] opacity-90 leading-tight">${m.start_time.slice(0,5)}–${m.end_time.slice(0,5)}</div>
         </button>`;
