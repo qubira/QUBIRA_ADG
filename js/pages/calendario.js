@@ -8,7 +8,7 @@ const MEETING_TYPES = ['Coordinación administrativa','Reunión con cliente','Re
 const EXTERNAL_KINDS = [['cliente','Cliente'],['postulante','Postulante'],['proveedor','Proveedor'],['consultor','Consultor'],['otro','Otro']];
 const STATUS_LABEL = { scheduled:'Programada', confirmed:'Confirmada', in_progress:'En curso', completed:'Finalizada', cancelled:'Cancelada' };
 
-let _mode = 'area';               // 'area' | 'mine'
+let _mode = 'area';               // 'area' | 'mine' | 'week'
 let _filters = { area: OWN_AREA, participant: '', type: '', date_from: todayISO(), date_to: '', status: '' };
 let _meetings = [];
 let _formOpen = false;
@@ -19,6 +19,10 @@ let _externalParticipants = [];   // [{name, kind}]
 let _dirResults = [];
 let _dirDebounce, _filterDebounce;
 let _checkToken = 0;
+let _draft = {};                  // texto en progreso del formulario — sobrevive a un re-render por filtro/recarga
+let _weekOffset = 0;              // semanas respecto a la actual, para la vista semanal
+const WEEK_START_HOUR = 7;
+const WEEK_END_HOUR = 21;
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 function esc(s) {
@@ -33,6 +37,23 @@ function fmtDateOnly(s) {
 function fullName(p) { return [p.nombre, p.apellidos].filter(Boolean).join(' '); }
 function isPrivileged() { return (getUser()?.nivel_acceso || 0) >= 100; }
 
+function isoDate(d) { return d.toISOString().slice(0, 10); }
+function weekBounds(offset) {
+  const now = new Date();
+  const day = now.getDay(); // 0=domingo..6=sábado
+  const diffToMonday = (day === 0 ? -6 : 1 - day);
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  monday.setDate(monday.getDate() + diffToMonday + offset * 7);
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+  return { monday, sunday: days[6], days };
+}
+const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const MONTH_LABELS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
 export function render() {
   const main = document.getElementById('main');
   main.innerHTML = `<div class="p-6 max-w-7xl mx-auto" id="cal-page">${spinner()}</div>`;
@@ -41,20 +62,28 @@ export function render() {
 
 async function load() {
   try {
-    const params = { date_from: _filters.date_from || undefined, date_to: _filters.date_to || undefined, status: _filters.status || undefined };
-    if (_mode === 'mine') {
-      params.mine = 'true';
+    let params;
+    if (_mode === 'week') {
+      const { monday, sunday } = weekBounds(_weekOffset);
+      params = { date_from: isoDate(monday), date_to: isoDate(sunday), area: _filters.area === 'ALL' ? undefined : _filters.area };
     } else {
-      params.area = _filters.area;
+      params = { date_from: _filters.date_from || undefined, date_to: _filters.date_to || undefined, status: _filters.status || undefined };
+      if (_mode === 'mine') {
+        params.mine = 'true';
+      } else {
+        params.area = _filters.area;
+      }
     }
     let meetings = await api.get('/calendar/meetings', params);
-    if (_filters.participant) {
-      const q = _filters.participant.toLowerCase();
-      meetings = meetings.filter(m => (m.participants || []).some(p =>
-        (p.user_name || p.external_name || '').toLowerCase().includes(q)));
-    }
-    if (_filters.type) {
-      meetings = meetings.filter(m => (m.meeting_type || '').toLowerCase() === _filters.type.toLowerCase());
+    if (_mode !== 'week') {
+      if (_filters.participant) {
+        const q = _filters.participant.toLowerCase();
+        meetings = meetings.filter(m => (m.participants || []).some(p =>
+          (p.user_name || p.external_name || '').toLowerCase().includes(q)));
+      }
+      if (_filters.type) {
+        meetings = meetings.filter(m => (m.meeting_type || '').toLowerCase() === _filters.type.toLowerCase());
+      }
     }
     _meetings = meetings;
     renderPage();
@@ -75,8 +104,10 @@ function renderPage() {
   <div class="flex items-center gap-2 mb-4 border-b border-gray-200">
     <button type="button" class="cal-tab px-4 py-2 text-sm font-medium border-b-2 ${_mode==='area' ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-mode="area">Calendario — ADG</button>
     <button type="button" class="cal-tab px-4 py-2 text-sm font-medium border-b-2 ${_mode==='mine' ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-mode="mine">Mi agenda</button>
+    <button type="button" class="cal-tab px-4 py-2 text-sm font-medium border-b-2 ${_mode==='week' ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-mode="week">Vista semana</button>
   </div>
 
+  ${_mode === 'week' ? weekViewHtml() : `
   <div class="flex flex-wrap gap-3 mb-5">
     ${_mode === 'area' ? `
       <select id="f-area" class="input w-auto">
@@ -101,10 +132,81 @@ function renderPage() {
 
   <div class="grid grid-cols-1 ${_formOpen ? 'lg:grid-cols-[1fr_380px]' : ''} gap-5 items-start">
     <div id="cal-list">${listHtml()}</div>
-    ${_formOpen ? `<div id="cal-form-panel">${formHtml()}</div>` : ''}
-  </div>`;
+    ${_formOpen ? `<div id="cal-form-panel" class="lg:sticky lg:top-4 self-start">${formHtml()}</div>` : ''}
+  </div>`}`;
 
   wirePage();
+}
+
+const AREA_COLORS = {
+  ADG: 'bg-indigo-500', TI: 'bg-blue-500', RRHH: 'bg-emerald-500', SOPORTE: 'bg-amber-500',
+};
+function areaColor(area) { return AREA_COLORS[String(area || '').toUpperCase()] || 'bg-gray-500'; }
+
+const WEEK_ROW_H = 48; // px por hora
+
+function weekViewHtml() {
+  const { monday, days } = weekBounds(_weekOffset);
+  const hours = [];
+  for (let h = WEEK_START_HOUR; h < WEEK_END_HOUR; h++) hours.push(h);
+  const rangeLabel = `${monday.getDate()} de ${MONTH_LABELS[monday.getMonth()]}${monday.getMonth() !== days[6].getMonth() ? ' – ' + days[6].getDate() + ' de ' + MONTH_LABELS[days[6].getMonth()] : ' – ' + days[6].getDate()} de ${days[6].getFullYear()}`;
+  const todayIso = todayISO();
+
+  const dayCols = days.map((d, i) => {
+    const iso = isoDate(d);
+    const isToday = iso === todayIso;
+    const dayMeetings = _meetings.filter(m => m.meeting_date === iso && m.visibility !== 'busy_only');
+    const blocks = dayMeetings.map(m => {
+      const [sh, sm] = m.start_time.slice(0,5).split(':').map(Number);
+      const [eh, em] = m.end_time.slice(0,5).split(':').map(Number);
+      const startMin = Math.max(0, (sh - WEEK_START_HOUR) * 60 + sm);
+      const endMin = Math.min((WEEK_END_HOUR - WEEK_START_HOUR) * 60, (eh - WEEK_START_HOUR) * 60 + em);
+      const top = (startMin / 60) * WEEK_ROW_H;
+      const height = Math.max(20, ((endMin - startMin) / 60) * WEEK_ROW_H);
+      return `
+        <button type="button" class="cal-week-event absolute left-0.5 right-0.5 rounded-md ${areaColor(m.area)} text-white text-left px-1.5 py-0.5 overflow-hidden shadow-sm hover:brightness-110" data-id="${m.id}" style="top:${top}px;height:${height}px">
+          <div class="text-[10px] font-semibold leading-tight truncate">${esc(m.title)}</div>
+          <div class="text-[9px] opacity-90 leading-tight">${m.start_time.slice(0,5)}–${m.end_time.slice(0,5)}</div>
+        </button>`;
+    }).join('');
+    return `
+      <div class="relative border-l border-gray-100 ${isToday ? 'bg-primary-50/40' : ''}" style="height:${hours.length * WEEK_ROW_H}px">
+        ${hours.map((_, hi) => `<div class="absolute left-0 right-0 border-t border-gray-100" style="top:${hi * WEEK_ROW_H}px"></div>`).join('')}
+        ${blocks}
+      </div>`;
+  }).join('');
+
+  const dayHeaders = days.map((d, i) => {
+    const iso = isoDate(d);
+    const isToday = iso === todayIso;
+    return `
+      <div class="text-center py-2 border-l border-gray-100 ${isToday ? 'bg-primary-50/40' : ''}">
+        <div class="text-[11px] text-gray-400 uppercase">${WEEKDAY_LABELS[i]}</div>
+        <div class="text-sm font-semibold ${isToday ? 'text-primary-700' : 'text-gray-700'}">${d.getDate()}</div>
+      </div>`;
+  }).join('');
+
+  return `
+  <div class="card p-0 overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+      <button type="button" id="week-today-btn" class="btn-secondary text-xs px-3 py-1.5">Hoy</button>
+      <div class="flex items-center gap-2">
+        <button type="button" id="week-prev-btn" class="p-1.5 rounded hover:bg-gray-100 text-gray-500">${icon('chevron_left',18)}</button>
+        <span class="text-sm font-medium text-gray-700">${rangeLabel}</span>
+        <button type="button" id="week-next-btn" class="p-1.5 rounded hover:bg-gray-100 text-gray-500">${icon('chevron_right',18)}</button>
+      </div>
+      <div class="w-[72px]"></div>
+    </div>
+    <div class="overflow-x-auto">
+      <div class="grid" style="grid-template-columns:56px repeat(7,minmax(110px,1fr));min-width:820px">
+        <div></div>${dayHeaders}
+        <div class="relative" style="height:${hours.length * WEEK_ROW_H}px">
+          ${hours.map((h, hi) => `<div class="absolute left-0 right-0 text-right pr-2 text-[11px] text-gray-400 -translate-y-1/2" style="top:${hi * WEEK_ROW_H}px">${String(h).padStart(2,'0')}:00</div>`).join('')}
+        </div>
+        ${dayCols}
+      </div>
+    </div>
+  </div>`;
 }
 
 function listHtml() {
@@ -159,6 +261,8 @@ function meetingCard(m) {
 
 function formHtml() {
   const editing = _meetings.find(m => m.id === _editingId);
+  const fv = (name, fallback) => esc(_draft[name] ?? fallback ?? '');
+  const currentImage = _draft.image_url !== undefined ? _draft.image_url : (editing?.image_url || null);
   return `
   <div class="card p-5">
     <div class="flex items-center justify-between mb-4">
@@ -168,40 +272,50 @@ function formHtml() {
     <form id="cal-form" class="space-y-3">
       <div>
         <label class="text-xs font-medium text-gray-600">Nombre de la reunión *</label>
-        <input name="title" class="input text-sm w-full mt-1" required value="${esc(editing?.title || '')}">
+        <input name="title" class="input text-sm w-full mt-1" required value="${fv('title', editing?.title)}">
       </div>
       <div class="grid grid-cols-3 gap-2">
         <div>
           <label class="text-xs font-medium text-gray-600">Fecha *</label>
-          <input type="date" name="date" class="input text-sm w-full mt-1" required value="${editing?.meeting_date || ''}">
+          <input type="date" name="date" class="input text-sm w-full mt-1" required value="${fv('date', editing?.meeting_date)}">
         </div>
         <div>
           <label class="text-xs font-medium text-gray-600">Inicio *</label>
-          <input type="time" name="start_time" class="input text-sm w-full mt-1" required value="${editing ? editing.start_time.slice(0,5) : ''}">
+          <input type="time" name="start_time" class="input text-sm w-full mt-1" required value="${fv('start_time', editing ? editing.start_time.slice(0,5) : '')}">
         </div>
         <div>
           <label class="text-xs font-medium text-gray-600">Fin *</label>
-          <input type="time" name="end_time" class="input text-sm w-full mt-1" required value="${editing ? editing.end_time.slice(0,5) : ''}">
+          <input type="time" name="end_time" class="input text-sm w-full mt-1" required value="${fv('end_time', editing ? editing.end_time.slice(0,5) : '')}">
         </div>
       </div>
       <div>
         <label class="text-xs font-medium text-gray-600">Tipo de reunión</label>
         <select name="meeting_type" class="input text-sm w-full mt-1">
           <option value="">— Seleccionar —</option>
-          ${MEETING_TYPES.map(t => `<option value="${t}" ${editing?.meeting_type===t?'selected':''}>${t}</option>`).join('')}
+          ${MEETING_TYPES.map(t => `<option value="${t}" ${(_draft.meeting_type ?? editing?.meeting_type)===t?'selected':''}>${t}</option>`).join('')}
         </select>
       </div>
       <div>
         <label class="text-xs font-medium text-gray-600">Ubicación</label>
-        <input name="location" class="input text-sm w-full mt-1" placeholder="Sala de reuniones, dirección, link de videollamada..." value="${esc(editing?.location || '')}">
+        <input name="location" class="input text-sm w-full mt-1" placeholder="Sala de reuniones, dirección, link de videollamada..." value="${fv('location', editing?.location)}">
       </div>
       <div>
         <label class="text-xs font-medium text-gray-600">Motivo</label>
-        <input name="motivo" class="input text-sm w-full mt-1" value="${esc(editing?.motivo || '')}">
+        <input name="motivo" class="input text-sm w-full mt-1" value="${fv('motivo', editing?.motivo)}">
       </div>
       <div>
         <label class="text-xs font-medium text-gray-600">Descripción</label>
-        <textarea name="description" class="input text-sm w-full mt-1" rows="2">${esc(editing?.description || '')}</textarea>
+        <textarea name="description" class="input text-sm w-full mt-1" rows="2">${fv('description', editing?.description)}</textarea>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-600 block mb-1">Imagen del evento (opcional)</label>
+        ${currentImage ? `
+          <div class="relative inline-block mb-1.5">
+            <img src="${esc(currentImage)}" class="rounded-lg max-h-28 border border-gray-200">
+            <button type="button" id="cal-image-remove" class="absolute -top-1.5 -right-1.5 bg-white rounded-full shadow p-0.5 text-gray-500 hover:text-red-600">${icon('close',14)}</button>
+          </div>` : ''}
+        <input type="file" id="cal-image-input" accept="image/*" class="text-xs w-full">
+        <p id="cal-image-status" class="text-[11px] text-gray-400 mt-1"></p>
       </div>
 
       <div>
@@ -266,8 +380,17 @@ function conflictBannerHtml() {
 function wirePage() {
   document.querySelectorAll('.cal-tab').forEach(btn => btn.addEventListener('click', () => {
     _mode = btn.dataset.mode;
+    if (_mode === 'week') _weekOffset = 0;
     load();
   }));
+
+  const weekPrev = document.getElementById('week-prev-btn');
+  if (weekPrev) weekPrev.addEventListener('click', () => { _weekOffset--; load(); });
+  const weekNext = document.getElementById('week-next-btn');
+  if (weekNext) weekNext.addEventListener('click', () => { _weekOffset++; load(); });
+  const weekToday = document.getElementById('week-today-btn');
+  if (weekToday) weekToday.addEventListener('click', () => { _weekOffset = 0; load(); });
+  document.querySelectorAll('.cal-week-event').forEach(btn => btn.addEventListener('click', () => viewMeeting(btn.dataset.id)));
 
   const areaSel = document.getElementById('f-area');
   if (areaSel) areaSel.addEventListener('change', e => { _filters.area = e.target.value; load(); });
@@ -288,30 +411,78 @@ function wirePage() {
 
   const addBtn = document.getElementById('cal-add-btn');
   if (addBtn) addBtn.addEventListener('click', () => {
-    _editingId = null; _selectedParticipants = []; _externalParticipants = []; _conflicts = [];
+    _editingId = null; _selectedParticipants = []; _externalParticipants = []; _conflicts = []; _draft = {};
     _formOpen = true; renderPage();
   });
 
   ['cal-form-close', 'cal-form-cancel'].forEach(id => {
     const btn = document.getElementById(id);
-    if (btn) btn.addEventListener('click', () => { _formOpen = false; _editingId = null; renderPage(); });
+    if (btn) btn.addEventListener('click', () => { _formOpen = false; _editingId = null; _draft = {}; renderPage(); });
   });
 
   wireFormExtras();
-
-  const form = document.getElementById('cal-form');
-  if (form) {
-    ['date', 'start_time', 'end_time'].forEach(name => {
-      const el = form.elements[name];
-      if (el) el.addEventListener('change', liveCheck);
-    });
-    form.addEventListener('submit', submitForm);
-  }
+  wireFormDraftCapture();
+  wireImageControls();
 
   document.querySelectorAll('.cal-view-btn').forEach(btn => btn.addEventListener('click', () => viewMeeting(btn.dataset.id)));
   document.querySelectorAll('.cal-edit-btn').forEach(btn => btn.addEventListener('click', () => editMeeting(btn.dataset.id)));
   document.querySelectorAll('.cal-cancel-btn').forEach(btn => btn.addEventListener('click', () => cancelMeeting(btn.dataset.id)));
   document.querySelectorAll('.cal-del-btn').forEach(btn => btn.addEventListener('click', () => deleteMeeting(btn.dataset.id)));
+}
+
+/* Guarda lo que se va escribiendo en un estado aparte (_draft) — si la
+   lista se recarga por un filtro mientras el panel sigue abierto, el
+   re-render del formulario no borra lo que ya se había tecleado. Se
+   vuelve a llamar cada vez que se regenera el HTML del panel (subir
+   imagen, quitar imagen), no solo en el render inicial. */
+function wireFormDraftCapture() {
+  const form = document.getElementById('cal-form');
+  if (!form) return;
+  const captureDraft = e => { if (e.target.name) _draft[e.target.name] = e.target.value; };
+  form.addEventListener('input', captureDraft);
+  form.addEventListener('change', captureDraft);
+  ['date', 'start_time', 'end_time'].forEach(name => {
+    const el = form.elements[name];
+    if (el) el.addEventListener('change', liveCheck);
+  });
+  form.addEventListener('submit', submitForm);
+}
+
+function rerenderFormPanel() {
+  const panel = document.getElementById('cal-form-panel');
+  if (!panel) return;
+  panel.innerHTML = formHtml();
+  wireFormExtras();
+  wireFormDraftCapture();
+  wireImageControls();
+}
+
+function wireImageControls() {
+  const imageInput = document.getElementById('cal-image-input');
+  if (imageInput) imageInput.addEventListener('change', handleImageUpload);
+  const imageRemove = document.getElementById('cal-image-remove');
+  if (imageRemove) imageRemove.addEventListener('click', () => {
+    _draft.image_url = null;
+    rerenderFormPanel();
+  });
+}
+
+async function handleImageUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('cal-image-status');
+  if (status) status.textContent = 'Subiendo imagen...';
+  try {
+    const fd = new FormData();
+    fd.append('image', file);
+    const data = await api.post('/calendar/meetings/image', fd);
+    _draft.image_url = data.url;
+    rerenderFormPanel();
+    toast('Imagen subida');
+  } catch (err) {
+    if (status) status.textContent = '';
+    toast(err.message || 'No se pudo subir la imagen', 'error');
+  }
 }
 
 function wireFormExtras() {
@@ -429,8 +600,11 @@ async function submitForm(e) {
   if (end_time <= start_time) return toast('La hora de fin debe ser posterior a la de inicio', 'error');
   if (!_selectedParticipants.length && !_externalParticipants.length) return toast('Selecciona al menos un participante', 'error');
 
+  const editing = _meetings.find(m => m.id === _editingId);
+  const image_url = _draft.image_url !== undefined ? _draft.image_url : (editing?.image_url || null);
+
   const payload = {
-    title, date, start_time, end_time, meeting_type, location, motivo, description,
+    title, date, start_time, end_time, meeting_type, location, motivo, description, image_url,
     participants: _selectedParticipants.map(p => ({ user_id: p.user_id })),
     external_participants: _externalParticipants,
   };
@@ -443,7 +617,7 @@ async function submitForm(e) {
       await api.post('/calendar/meetings', payload);
       toast('Reunión programada');
     }
-    _formOpen = false; _editingId = null; _conflicts = [];
+    _formOpen = false; _editingId = null; _conflicts = []; _draft = {};
     await load();
   } catch (err) {
     if (err.response?.data?.conflicts) {
@@ -468,6 +642,7 @@ function editMeeting(id) {
     .filter(p => p.participant_type === 'external')
     .map(p => ({ name: p.external_name, kind: p.external_kind }));
   _conflicts = [];
+  _draft = {};
   _formOpen = true;
   renderPage();
 }
@@ -504,13 +679,14 @@ function viewMeeting(id) {
   }).join('');
   showModal(esc(m.title), `
     <div class="space-y-3 text-sm">
+      ${m.image_url ? `<img src="${esc(m.image_url)}" class="w-full max-h-64 object-cover rounded-lg border border-gray-200">` : ''}
       <p><span class="font-medium text-gray-700">Área:</span> ${esc(m.area)}</p>
       <p><span class="font-medium text-gray-700">Fecha:</span> ${fmtDateOnly(m.meeting_date)}</p>
       <p><span class="font-medium text-gray-700">Horario:</span> ${m.start_time.slice(0,5)} — ${m.end_time.slice(0,5)}</p>
       ${m.meeting_type ? `<p><span class="font-medium text-gray-700">Tipo:</span> ${esc(m.meeting_type)}</p>` : ''}
       ${m.location ? `<p><span class="font-medium text-gray-700">Ubicación:</span> ${esc(m.location)}</p>` : ''}
       ${m.motivo ? `<p><span class="font-medium text-gray-700">Motivo:</span> ${esc(m.motivo)}</p>` : ''}
-      ${m.description ? `<p><span class="font-medium text-gray-700">Descripción:</span> ${esc(m.description)}</p>` : ''}
+      ${m.description ? `<div><span class="font-medium text-gray-700">Descripción:</span><p class="mt-1 text-gray-600" style="white-space:pre-wrap">${esc(m.description)}</p></div>` : ''}
       <div>
         <p class="font-medium text-gray-700 mb-1">Participantes:</p>
         <ul class="list-disc list-inside text-gray-600">${participantsHtml || '<li>Sin participantes</li>'}</ul>
