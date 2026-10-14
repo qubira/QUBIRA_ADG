@@ -235,6 +235,7 @@ function projectCard(p) {
 
 const DOC_TYPES = [['dni','DNI'],['ce','CE'],['pasaporte','Pasaporte'],['ruc','RUC']];
 const CURRENCIES = [['USD','USD - Dólares'],['EUR','EUR - Euros'],['JPY','JPY - Yenes'],['PEN','PEN - Soles']];
+const COMMERCIAL_CURRENCIES = [['PEN','S/ Soles'],['USD','$ Dólares'],['EUR','€ Euros']];
 const PROJECT_TYPES = [['web','Web'],['mobile','Aplicativo Móvil'],['desktop','Aplicativo de Escritorio']];
 
 function openModal(editing = null) {
@@ -242,7 +243,7 @@ function openModal(editing = null) {
   const f = editing || { name:'', client:'', description:'', status:'pending', progress:0, budget:'', currency:'USD',
     start_date:'', end_date:'', responsible_id:'', priority:'medium', company_name:'', company_logo:'',
     id_document_type:'dni', id_document_number:'', project_type:'web', github_url:'', website_url:'', family:'',
-    show_to_comercial:false, commercial_offer_type:'', commercial_price:'', commercial_notes:'' };
+    show_to_comercial:false, commercial_offer_type:'', commercial_price:'', commercial_price_currency:'PEN', commercial_notes:'' };
 
   const userOpts = _users.map(u => `<option value="${u.id}" ${String(f.responsible_id)===String(u.id)?'selected':''}>${esc(u.name)}</option>`).join('');
   const docOpts = buildDocOpts(f.id_document_type);
@@ -362,7 +363,12 @@ function openModal(editing = null) {
             </div>
             <div>
               <label class="label">Precio Referencial</label>
-              <input class="input" type="number" name="commercial_price" id="commercial-price-input" min="0" step="0.01" value="${f.commercial_price||''}" placeholder="Opcional" ${f.show_to_comercial?'':'disabled'}>
+              <div class="flex gap-2">
+                <select class="input w-28" name="commercial_price_currency" id="commercial-price-currency-select" ${f.show_to_comercial?'':'disabled'}>
+                  ${COMMERCIAL_CURRENCIES.map(([v,l]) => `<option value="${v}" ${(f.commercial_price_currency||'PEN')===v?'selected':''}>${l}</option>`).join('')}
+                </select>
+                <input class="input" type="number" name="commercial_price" id="commercial-price-input" min="0" step="0.01" value="${f.commercial_price||''}" placeholder="Opcional" ${f.show_to_comercial?'':'disabled'}>
+              </div>
             </div>
             <div class="col-span-2">
               <label class="label">Notas para Comercial</label>
@@ -441,7 +447,7 @@ function openModal(editing = null) {
   document.getElementById('show-to-comercial-check').addEventListener('change', e => {
     const on = e.target.checked;
     document.getElementById('comercial-fields').classList.toggle('opacity-50', !on);
-    ['commercial-offer-select', 'commercial-price-input', 'commercial-notes-input'].forEach(id => {
+    ['commercial-offer-select', 'commercial-price-currency-select', 'commercial-price-input', 'commercial-notes-input'].forEach(id => {
       document.getElementById(id).disabled = !on;
     });
   });
