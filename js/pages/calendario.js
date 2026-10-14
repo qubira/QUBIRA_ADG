@@ -3,7 +3,7 @@ import { getUser }    from '../state.js';
 import { toast, showModal, closeModal, confirmModal, pageHeader, spinner, icon } from '../utils.js';
 
 const OWN_AREA = 'ADG';
-const AREAS = [['ADG','ADG'],['TI','TI'],['RRHH','RR. HH.'],['SOPORTE','Soporte']];
+const AREAS = [['ADG','ADG'],['TI','OTI'],['RRHH','RR. HH.'],['SOPORTE','Soporte']];
 const MEETING_TYPES = ['Coordinación administrativa','Reunión con cliente','Reunión con proveedor','Planificación','Revisión','Otro'];
 const EXTERNAL_KINDS = [['cliente','Cliente'],['postulante','Postulante'],['proveedor','Proveedor'],['consultor','Consultor'],['otro','Otro']];
 const STATUS_LABEL = { scheduled:'Programada', confirmed:'Confirmada', in_progress:'En curso', completed:'Finalizada', cancelled:'Cancelada' };

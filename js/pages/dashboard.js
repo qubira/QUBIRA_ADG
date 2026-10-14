@@ -28,7 +28,7 @@ export function render() {
         <div class="flex items-center gap-2 mb-3">
           ${icon('notifications_active', 20)}
           <h2 class="font-semibold text-purple-900">
-            ${toReview.length} proyecto${toReview.length !== 1 ? 's' : ''} finalizado${toReview.length !== 1 ? 's' : ''} por TI — esperando tu revisión
+            ${toReview.length} proyecto${toReview.length !== 1 ? 's' : ''} finalizado${toReview.length !== 1 ? 's' : ''} por OTI — esperando tu revisión
           </h2>
         </div>
         <div class="space-y-2">

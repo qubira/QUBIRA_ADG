@@ -110,7 +110,7 @@ function renderPage() {
       ? `<button id="approve-btn" class="btn-primary">${icon('task_alt', 16)} Aprobar y completar</button>`
       : ''}
     ${p.status === 'pending'
-      ? `<span class="text-sm text-yellow-700 flex items-center gap-1.5">${icon('hourglass_empty', 16)} Esperando que TI lo reclame</span>`
+      ? `<span class="text-sm text-yellow-700 flex items-center gap-1.5">${icon('hourglass_empty', 16)} Esperando que OTI lo reclame</span>`
       : ''}
   </div>
 
@@ -144,7 +144,7 @@ function renderPage() {
   document.getElementById('export-pdf-btn').addEventListener('click', exportToPDF);
   document.getElementById('edit-btn')?.addEventListener('click', () => openEditModal());
   document.getElementById('approve-btn')?.addEventListener('click', async () => {
-    if (!(await confirmModal('¿Aprobar y dar por completado este proyecto? TI ya no va a poder editarlo después de esto.', { danger: false, confirmLabel: 'Aprobar' }))) return;
+    if (!(await confirmModal('¿Aprobar y dar por completado este proyecto? OTI ya no va a poder editarlo después de esto.', { danger: false, confirmLabel: 'Aprobar' }))) return;
     try {
       await api.put(`/projects/${_id}`, { status: 'completed' });
       toast('Proyecto aprobado y completado');
@@ -331,7 +331,7 @@ function renderTabContent() {
   if (_tab === 'documents') {
     c.innerHTML = `
     <div class="space-y-3">
-      <p class="text-xs text-gray-400">La documentación técnica la carga y administra TI.</p>
+      <p class="text-xs text-gray-400">La documentación técnica la carga y administra OTI.</p>
       ${_documents.length === 0
         ? '<div class="card p-10 text-center text-gray-400">No hay documentos en este proyecto</div>'
         : _documents.map(d => `
@@ -350,7 +350,7 @@ function renderTabContent() {
   if (_tab === 'whatsapp') {
     c.innerHTML = `
     <div class="space-y-3">
-      <p class="text-xs text-gray-400">Los mensajes de WhatsApp los administra TI.</p>
+      <p class="text-xs text-gray-400">Los mensajes de WhatsApp los administra OTI.</p>
       ${_messages.length === 0
         ? '<div class="card p-10 text-center text-gray-400">No hay mensajes de WhatsApp en este proyecto</div>'
         : `<div class="card p-4 space-y-3 max-h-[500px] overflow-y-auto">
@@ -370,7 +370,7 @@ function renderTabContent() {
   if (_tab === 'emails') {
     c.innerHTML = `
     <div class="space-y-3">
-      <p class="text-xs text-gray-400">Los correos los administra TI.</p>
+      <p class="text-xs text-gray-400">Los correos los administra OTI.</p>
       ${_emails.length === 0
         ? '<div class="card p-10 text-center text-gray-400">No hay correos en este proyecto</div>'
         : _emails.map(e => `
