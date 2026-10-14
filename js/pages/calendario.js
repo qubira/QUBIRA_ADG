@@ -342,7 +342,7 @@ function formHtml() {
     <form id="cal-form" class="space-y-3">
       <div>
         <label class="text-xs font-medium text-gray-600">Nombre de la reunión *</label>
-        <input name="title" class="input text-sm w-full mt-1" required value="${fv('title', editing?.title)}">
+        <input name="title" class="input text-sm w-full mt-1" required autocomplete="off" value="${fv('title', editing?.title)}">
       </div>
       <div class="grid grid-cols-3 gap-2">
         <div>
@@ -366,16 +366,16 @@ function formHtml() {
         </select>
       </div>
       <div>
-        <label class="text-xs font-medium text-gray-600">Ubicación</label>
-        <input name="location" class="input text-sm w-full mt-1" placeholder="Sala de reuniones, dirección, link de videollamada..." value="${fv('location', editing?.location)}">
-      </div>
-      <div>
         <label class="text-xs font-medium text-gray-600">Motivo</label>
-        <input name="motivo" class="input text-sm w-full mt-1" value="${fv('motivo', editing?.motivo)}">
+        <input name="motivo" class="input text-sm w-full mt-1" autocomplete="off" value="${fv('motivo', editing?.motivo)}">
       </div>
       <div>
         <label class="text-xs font-medium text-gray-600">Descripción</label>
         <textarea name="description" class="input text-sm w-full mt-1" rows="2">${fv('description', editing?.description)}</textarea>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-600">Ubicación</label>
+        <input name="location" class="input text-sm w-full mt-1" placeholder="Sala de reuniones, dirección, link de videollamada..." autocomplete="off" value="${fv('location', editing?.location)}">
       </div>
       <div>
         <label class="text-xs font-medium text-gray-600 block mb-1">Imagen del evento (opcional)</label>
@@ -391,7 +391,7 @@ function formHtml() {
       <div>
         <label class="text-xs font-medium text-gray-600 block mb-1">Participantes internos</label>
         <div class="relative">
-          <input id="cal-participant-search" class="input text-sm w-full" placeholder="Buscar por nombre, cargo o área...">
+          <input id="cal-participant-search" class="input text-sm w-full" placeholder="Buscar por nombre, cargo o área..." autocomplete="off">
           <div id="cal-dir-results" class="absolute z-10 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto hidden"></div>
         </div>
         <div id="cal-selected-participants" class="flex flex-wrap gap-1.5 mt-2">${selectedParticipantsHtml()}</div>
@@ -400,7 +400,7 @@ function formHtml() {
       <div>
         <label class="text-xs font-medium text-gray-600 block mb-1">Participante externo (cliente, postulante, proveedor...)</label>
         <div class="flex gap-2">
-          <input id="cal-ext-name" class="input text-sm flex-1" placeholder="Nombre">
+          <input id="cal-ext-name" class="input text-sm flex-1" placeholder="Nombre" autocomplete="off">
           <select id="cal-ext-kind" class="input text-sm w-auto">
             ${EXTERNAL_KINDS.map(([k,l]) => `<option value="${k}">${l}</option>`).join('')}
           </select>
