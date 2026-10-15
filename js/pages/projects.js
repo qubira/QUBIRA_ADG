@@ -351,26 +351,64 @@ function openModal(editing = null) {
             <input type="checkbox" id="show-to-comercial-check" ${f.show_to_comercial?'checked':''} class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
             <span class="text-sm font-medium text-gray-700">Mostrar este producto en el panel Comercial</span>
           </label>
-          <div id="comercial-fields" class="grid grid-cols-2 gap-3 ${f.show_to_comercial?'':'opacity-50'}">
-            <div>
-              <label class="label">Tipo de Oferta</label>
-              <select class="input" name="commercial_offer_type" id="commercial-offer-select" ${f.show_to_comercial?'':'disabled'}>
-                <option value="">Sin definir</option>
-                <option value="venta" ${f.commercial_offer_type==='venta'?'selected':''}>Venta</option>
-                <option value="alquiler" ${f.commercial_offer_type==='alquiler'?'selected':''}>Alquiler</option>
-                <option value="venta_alquiler" ${f.commercial_offer_type==='venta_alquiler'?'selected':''}>Venta o alquiler</option>
-              </select>
-            </div>
-            <div>
-              <label class="label">Precio Referencial</label>
-              <div class="flex gap-2">
-                <select class="input w-28" name="commercial_price_currency" id="commercial-price-currency-select" ${f.show_to_comercial?'':'disabled'}>
+          <div id="comercial-fields" class="space-y-3 ${f.show_to_comercial?'':'opacity-50'}">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Tipo de Oferta</label>
+                <select class="input" name="commercial_offer_type" id="commercial-offer-select" ${f.show_to_comercial?'':'disabled'}>
+                  <option value="">Sin definir</option>
+                  <option value="venta" ${f.commercial_offer_type==='venta'?'selected':''}>Venta</option>
+                  <option value="alquiler" ${f.commercial_offer_type==='alquiler'?'selected':''}>Alquiler</option>
+                  <option value="venta_alquiler" ${f.commercial_offer_type==='venta_alquiler'?'selected':''}>Venta o alquiler</option>
+                </select>
+              </div>
+              <div>
+                <label class="label">Moneda</label>
+                <select class="input" name="commercial_price_currency" id="commercial-price-currency-select" ${f.show_to_comercial?'':'disabled'}>
                   ${COMMERCIAL_CURRENCIES.map(([v,l]) => `<option value="${v}" ${(f.commercial_price_currency||'PEN')===v?'selected':''}>${l}</option>`).join('')}
                 </select>
-                <input class="input" type="number" name="commercial_price" id="commercial-price-input" min="0" step="0.01" value="${f.commercial_price||''}" placeholder="Opcional" ${f.show_to_comercial?'':'disabled'}>
               </div>
             </div>
-            <div class="col-span-2">
+
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Estructura de precios de OPP</p>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="label">Costo Base / Inversión</label>
+                  <input class="input" type="number" name="opp_cost_base" id="opp-cost-base-input" min="0" step="0.01" value="${f.opp_cost_base??''}" placeholder="Opcional" ${f.show_to_comercial?'':'disabled'}>
+                </div>
+                <div>
+                  <label class="label">Margen Calculado</label>
+                  <div class="h-[38px] flex items-center gap-2 text-sm">
+                    <strong id="opp-margin-display" class="text-primary-600">${f.opp_margin_pct!=null?f.opp_margin_pct+'%':'—'}</strong>
+                  </div>
+                </div>
+              </div>
+              <div id="opp-sale-fields" class="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                  <label class="label">Precio de Venta</label>
+                  <input class="input" type="number" name="commercial_price" id="commercial-price-input" min="0" step="0.01" value="${f.commercial_price||''}" placeholder="Opcional" ${f.show_to_comercial?'':'disabled'}>
+                </div>
+                <div>
+                  <label class="label">Piso Mínimo de Venta</label>
+                  <input class="input" type="number" name="sale_price_min" id="sale-price-min-input" min="0" step="0.01" value="${f.sale_price_min??''}" placeholder="Opcional" ${f.show_to_comercial?'':'disabled'}>
+                </div>
+              </div>
+              <div id="opp-rent-fields" class="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                  <label class="label">Alquiler Mensual</label>
+                  <input class="input" type="number" name="rental_price" id="rental-price-input" min="0" step="0.01" value="${f.rental_price??''}" placeholder="Opcional" ${f.show_to_comercial?'':'disabled'}>
+                </div>
+                <div>
+                  <label class="label">Piso Mínimo de Alquiler</label>
+                  <input class="input" type="number" name="rental_price_min" id="rental-price-min-input" min="0" step="0.01" value="${f.rental_price_min??''}" placeholder="Opcional" ${f.show_to_comercial?'':'disabled'}>
+                </div>
+              </div>
+              <p class="text-xs text-gray-500 mt-2" id="opp-roi-display">${f.opp_roi_months!=null?`Retorno de inversión: <strong>${f.opp_roi_months} meses</strong> de alquiler`:''}</p>
+              ${f.opp_user_name ? `<p class="text-xs text-gray-400 mt-1">Última valorización de OPP: ${esc(f.opp_user_name)}${f.opp_updated_at ? ' · ' + fmtDateTime(f.opp_updated_at) : ''}</p>` : ''}
+            </div>
+
+            <div>
               <label class="label">Notas para Comercial</label>
               <textarea class="input resize-none" name="commercial_notes" id="commercial-notes-input" rows="2" placeholder="Opcional — detalles útiles para quien venda u ofrezca este producto" ${f.show_to_comercial?'':'disabled'}>${esc(f.commercial_notes||'')}</textarea>
             </div>
@@ -444,12 +482,42 @@ function openModal(editing = null) {
   document.getElementById('modal-cancel').addEventListener('click', closeModal);
   document.getElementById('doc-type-add').addEventListener('click', () => addCustomDocType(document.getElementById('doc-type-select')));
 
+  const COMERCIAL_FIELD_IDS = ['commercial-offer-select', 'commercial-price-currency-select', 'opp-cost-base-input',
+    'commercial-price-input', 'sale-price-min-input', 'rental-price-input', 'rental-price-min-input', 'commercial-notes-input'];
   document.getElementById('show-to-comercial-check').addEventListener('change', e => {
     const on = e.target.checked;
     document.getElementById('comercial-fields').classList.toggle('opacity-50', !on);
-    ['commercial-offer-select', 'commercial-price-currency-select', 'commercial-price-input', 'commercial-notes-input'].forEach(id => {
-      document.getElementById(id).disabled = !on;
-    });
+    COMERCIAL_FIELD_IDS.forEach(id => { document.getElementById(id).disabled = !on; });
+  });
+
+  /* Las secciones de venta/alquiler se muestran u ocultan según el
+     Tipo de Oferta — mismo criterio que usa el panel de OPP. */
+  function updateOppFieldVisibility() {
+    const type = document.getElementById('commercial-offer-select').value;
+    document.getElementById('opp-sale-fields').classList.toggle('hidden', type === 'alquiler');
+    document.getElementById('opp-rent-fields').classList.toggle('hidden', type === 'venta' || type === '');
+  }
+  function calculateOppMargins() {
+    const cost = Number(document.getElementById('opp-cost-base-input').value) || 0;
+    const salePrice = Number(document.getElementById('commercial-price-input').value) || 0;
+    const rentPrice = Number(document.getElementById('rental-price-input').value) || 0;
+    const marginDisplay = document.getElementById('opp-margin-display');
+    if (cost > 0 && salePrice > 0) {
+      marginDisplay.textContent = `${Math.round(((salePrice - cost) / salePrice) * 100)}%`;
+    } else {
+      marginDisplay.textContent = '—';
+    }
+    const roiDisplay = document.getElementById('opp-roi-display');
+    if (cost > 0 && rentPrice > 0) {
+      roiDisplay.innerHTML = `Retorno de inversión: <strong>${Math.ceil(cost / rentPrice)} meses</strong> de alquiler`;
+    } else {
+      roiDisplay.innerHTML = '';
+    }
+  }
+  updateOppFieldVisibility();
+  document.getElementById('commercial-offer-select').addEventListener('change', updateOppFieldVisibility);
+  ['opp-cost-base-input', 'commercial-price-input', 'rental-price-input'].forEach(id => {
+    document.getElementById(id).addEventListener('input', calculateOppMargins);
   });
 
   document.getElementById('logo-dropzone').addEventListener('click', () => {
@@ -511,6 +579,11 @@ function openModal(editing = null) {
     e.preventDefault();
     const fd = new FormData(e.target);
     fd.set('show_to_comercial', document.getElementById('show-to-comercial-check').checked ? 'true' : 'false');
+    const marginText = document.getElementById('opp-margin-display').textContent;
+    if (marginText !== '—') fd.set('opp_margin_pct', marginText.replace('%', ''));
+    const cost = Number(document.getElementById('opp-cost-base-input').value) || 0;
+    const rent = Number(document.getElementById('rental-price-input').value) || 0;
+    if (cost > 0 && rent > 0) fd.set('opp_roi_months', String(Math.ceil(cost / rent)));
     try {
       if (editing) {
         await api.put(`/projects/${editing.id}`, fd);
