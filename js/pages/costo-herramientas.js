@@ -1,7 +1,15 @@
 import { api }      from '../api.js';
-import { toast, showModal, closeModal, pageHeader, spinner, icon } from '../utils.js';
+import { toast, showModal, closeModal, spinner, icon } from '../utils.js';
 
 let _techCatalog = { language: [], tool: [] };
+
+function thumbUrl(url, size = 64) {
+  if (!url) return '';
+  if (typeof url === 'string' && url.includes('res.cloudinary.com') && url.includes('/image/upload/') && !url.includes('/image/upload/w_')) {
+    return url.replace('/image/upload/', `/image/upload/w_${size},h_${size},c_fit,f_auto,q_auto/`);
+  }
+  return url;
+}
 
 export function render() {
   const main = document.getElementById('main');
@@ -65,7 +73,7 @@ function techPreviewColumn(label, category) {
 
 function techRowPreview(t) {
   const avatar = t.image_url
-    ? `<img src="${esc(t.image_url)}" class="w-7 h-7 rounded object-cover shrink-0" alt="">`
+    ? `<img src="${esc(thumbUrl(t.image_url, 64))}" width="28" height="28" loading="lazy" decoding="async" class="w-7 h-7 rounded object-cover shrink-0" alt="">`
     : `<span class="w-7 h-7 rounded bg-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
   return `
   <div class="flex items-center gap-3 py-2.5">
@@ -80,21 +88,38 @@ function fmtS(v) {
 }
 
 export function openTechCostModal() {
+  const langCount = (_techCatalog.language || []).length;
+  const toolCount = (_techCatalog.tool || []).length;
+  const totalCount = langCount + toolCount;
+
   showModal('Herramientas Costo', `
-    <p class="text-xs text-gray-500 mb-4">Costo de referencia y margen (S/) que se suma al costo para armar el rango de precio de propuesta. Los cambios se guardan automáticamente al salir de cada campo.</p>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <p class="text-xs text-gray-500">Costo de referencia y margen (S/) para armar el rango de propuesta. Se guarda automáticamente al salir del campo.</p>
+      <div class="flex items-center gap-1.5 shrink-0 bg-gray-100 p-1 rounded-lg">
+        <button type="button" class="tc-tab-btn px-2.5 py-1 text-xs font-semibold rounded-md bg-white shadow-sm text-gray-900 transition-all" data-tab="all">Todos (${totalCount})</button>
+        <button type="button" class="tc-tab-btn px-2.5 py-1 text-xs font-semibold rounded-md text-gray-600 hover:text-gray-900 transition-all" data-tab="language">Lenguajes (${langCount})</button>
+        <button type="button" class="tc-tab-btn px-2.5 py-1 text-xs font-semibold rounded-md text-gray-600 hover:text-gray-900 transition-all" data-tab="tool">Herramientas (${toolCount})</button>
+      </div>
+    </div>
     <div class="space-y-6">
-      ${techCostSection('Lenguajes', 'language')}
-      ${techCostSection('Herramientas', 'tool')}
+      <div id="tc-section-language">
+        ${techCostSection('Lenguajes', 'language')}
+      </div>
+      <div id="tc-section-tool">
+        ${techCostSection('Herramientas', 'tool')}
+      </div>
     </div>
   `, '2xl', `
     <div class="flex justify-end">
       <button type="button" id="tech-cost-close" class="btn-secondary">Cerrar</button>
     </div>
   `);
+
   document.getElementById('tech-cost-close').addEventListener('click', () => {
     closeModal();
     renderPage();
   });
+
   wireTechCostModal();
 }
 
@@ -125,15 +150,18 @@ function techCostSection(label, category) {
 
 function techCostRow(t, category) {
   const avatar = t.image_url
-    ? `<img src="${esc(t.image_url)}" class="w-6 h-6 rounded object-cover shrink-0" alt="">`
+    ? `<img src="${esc(thumbUrl(t.image_url, 64))}" width="24" height="24" loading="lazy" decoding="async" class="w-6 h-6 rounded object-cover shrink-0" alt="">`
     : `<span class="w-6 h-6 rounded bg-indigo-200 flex items-center justify-center text-[10px] font-bold text-indigo-700 shrink-0">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
+  const cVal = t.costo ?? '';
+  const minVal = t.margen_min ?? '';
+  const maxVal = t.margen_max ?? '';
   return `
   <tr data-tc-row="${esc(t.id)}" data-category="${category}">
     <td class="px-3 py-2 w-9">${avatar}</td>
     <td class="px-3 py-2 text-gray-800 whitespace-nowrap font-medium">${esc(t.name)}</td>
-    <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-input" data-field="costo" value="${t.costo ?? ''}"></td>
-    <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-input" data-field="margen_min" value="${t.margen_min ?? ''}"></td>
-    <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-input" data-field="margen_max" value="${t.margen_max ?? ''}"></td>
+    <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-input" data-field="costo" data-initial="${cVal}" value="${cVal}"></td>
+    <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-input" data-field="margen_min" data-initial="${minVal}" value="${minVal}"></td>
+    <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-input" data-field="margen_max" data-initial="${maxVal}" value="${maxVal}"></td>
     <td class="px-3 py-2 text-xs text-gray-600 whitespace-nowrap tc-propuesta font-semibold">${propuestaLabel(t)}</td>
   </tr>`;
 }
@@ -146,28 +174,79 @@ function propuestaLabel(t) {
   return `${fmtS(min)} – ${fmtS(max)}`;
 }
 
+function getRowValues(row) {
+  return {
+    costo: row.querySelector('[data-field="costo"]')?.value ?? '',
+    margen_min: row.querySelector('[data-field="margen_min"]')?.value ?? '',
+    margen_max: row.querySelector('[data-field="margen_max"]')?.value ?? '',
+  };
+}
+
 function wireTechCostModal() {
-  document.querySelectorAll('#modal-body [data-tc-row]').forEach(row => {
+  const modalBody = document.getElementById('modal-body');
+  if (!modalBody) return;
+
+  // 1. Pestañas de filtrado (Todos / Lenguajes / Herramientas)
+  modalBody.querySelectorAll('.tc-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      modalBody.querySelectorAll('.tc-tab-btn').forEach(b => {
+        b.classList.remove('bg-white', 'shadow-sm', 'text-gray-900');
+        b.classList.add('text-gray-600');
+      });
+      btn.classList.add('bg-white', 'shadow-sm', 'text-gray-900');
+      btn.classList.remove('text-gray-600');
+
+      const secLang = document.getElementById('tc-section-language');
+      const secTool = document.getElementById('tc-section-tool');
+      if (secLang) secLang.style.display = (tab === 'all' || tab === 'language') ? '' : 'none';
+      if (secTool) secTool.style.display = (tab === 'all' || tab === 'tool') ? '' : 'none';
+    });
+  });
+
+  // 2. Delegación de eventos (ultra liviano: 1 listener para input y 1 para focusout)
+  modalBody.addEventListener('input', e => {
+    const input = e.target.closest('.tc-input');
+    if (!input) return;
+    const row = input.closest('[data-tc-row]');
+    if (!row) return;
+    const propuestaEl = row.querySelector('.tc-propuesta');
+    if (propuestaEl) propuestaEl.textContent = propuestaLabel(getRowValues(row));
+  });
+
+  modalBody.addEventListener('focusout', e => {
+    const input = e.target.closest('.tc-input');
+    if (!input) return;
+    const row = input.closest('[data-tc-row]');
+    if (!row) return;
+
+    // Solo guardar si algún valor cambió respecto al inicial
+    const current = getRowValues(row);
+    const cInput = row.querySelector('[data-field="costo"]');
+    const minInput = row.querySelector('[data-field="margen_min"]');
+    const maxInput = row.querySelector('[data-field="margen_max"]');
+    if (
+      current.costo === cInput.dataset.initial &&
+      current.margen_min === minInput.dataset.initial &&
+      current.margen_max === maxInput.dataset.initial
+    ) {
+      return;
+    }
+
     const id = row.dataset.tcRow;
     const category = row.dataset.category;
-    const inputs = row.querySelectorAll('.tc-input');
-    const propuestaEl = row.querySelector('.tc-propuesta');
-    const currentValues = () => ({
-      costo: row.querySelector('[data-field="costo"]').value,
-      margen_min: row.querySelector('[data-field="margen_min"]').value,
-      margen_max: row.querySelector('[data-field="margen_max"]').value,
-    });
-    const updatePropuesta = () => { propuestaEl.textContent = propuestaLabel(currentValues()); };
-    inputs.forEach(inp => {
-      inp.addEventListener('input', updatePropuesta);
-      inp.addEventListener('blur', () => saveTechCostRow(id, category, currentValues(), row));
-    });
+    saveTechCostRow(id, category, current, row, [cInput, minInput, maxInput]);
   });
 }
 
-async function saveTechCostRow(id, category, values, row) {
+async function saveTechCostRow(id, category, values, row, inputs) {
   try {
     await api.put(`/technology-catalog/${id}/cost`, values);
+    if (inputs) {
+      inputs[0].dataset.initial = values.costo;
+      inputs[1].dataset.initial = values.margen_min;
+      inputs[2].dataset.initial = values.margen_max;
+    }
     const list = _techCatalog[category] || [];
     const item = list.find(x => x.id === id);
     if (item) Object.assign(item, {
@@ -176,7 +255,7 @@ async function saveTechCostRow(id, category, values, row) {
       margen_max: values.margen_max === '' ? null : Number(values.margen_max),
     });
     row?.classList.add('bg-green-50');
-    setTimeout(() => row?.classList.remove('bg-green-50'), 700);
+    setTimeout(() => row?.classList.remove('bg-green-50'), 600);
   } catch (err) { toast(err.message || 'No se pudo guardar el costo', 'error'); }
 }
 
