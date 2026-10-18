@@ -30,6 +30,23 @@ function load() {
   });
 }
 
+function normalizePlans(t) {
+  if (Array.isArray(t.plans) && t.plans.length > 0) {
+    return t.plans.map(p => ({
+      name: p.name ?? '',
+      costo: p.costo ?? null,
+      margen_min: p.margen_min ?? null,
+      margen_max: p.margen_max ?? null,
+    }));
+  }
+  return [{
+    name: '',
+    costo: t.costo ?? null,
+    margen_min: t.margen_min ?? null,
+    margen_max: t.margen_max ?? null,
+  }];
+}
+
 function renderPage() {
   const c = document.getElementById('costo-herramientas-page');
   if (!c) return;
@@ -75,11 +92,22 @@ function techRowPreview(t) {
   const avatar = t.image_url
     ? `<div class="w-8 h-8 rounded-lg bg-white border border-gray-200/80 p-1 flex items-center justify-center shrink-0 shadow-sm"><img src="${esc(thumbUrl(t.image_url, 64))}" class="max-w-full max-h-full object-contain" alt="${esc(t.name)}"></div>`
     : `<span class="w-8 h-8 rounded-lg bg-indigo-100 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0 shadow-sm">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
+  
+  const plans = normalizePlans(t);
+  let badge = '';
+  if (t.category === 'tool' && plans.length > 1) {
+    badge = `<span class="text-xs text-indigo-600 font-semibold bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded">${plans.length} planes</span>`;
+  } else if (plans[0]?.costo != null && plans[0]?.costo !== '') {
+    badge = `<span class="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">S/ ${Number(plans[0].costo).toFixed(2)}</span>`;
+  } else if (t.costo != null && t.costo !== '') {
+    badge = `<span class="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">S/ ${Number(t.costo).toFixed(2)}</span>`;
+  }
+
   return `
   <div class="flex items-center gap-3 py-2.5">
     ${avatar}
     <p class="text-sm font-medium text-gray-800 flex-1 truncate">${esc(t.name)}</p>
-    ${t.costo != null && t.costo !== '' ? `<span class="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">S/ ${Number(t.costo).toFixed(2)}</span>` : ''}
+    ${badge}
   </div>`;
 }
 
@@ -151,24 +179,30 @@ export function openTechCostModal() {
 
 function techCostSection(label, category) {
   const items = _techCatalog[category] || [];
+  const isTool = category === 'tool';
   return `
   <div>
-    <h4 class="font-semibold text-gray-900 mb-2">${label}</h4>
+    <div class="flex items-center justify-between mb-2">
+      <h4 class="font-semibold text-gray-900">${label}</h4>
+      ${isTool ? '<span class="text-xs text-gray-400 font-medium">Hasta 5 planes por herramienta con denominación personalizada</span>' : ''}
+    </div>
     ${items.length === 0 ? '<p class="text-xs text-gray-400 py-3">Sin registrar</p>' : `
     <div class="overflow-x-auto border border-gray-100 rounded-xl" id="tc-table-wrap-${category}">
       <table class="w-full text-sm">
         <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
           <tr>
             <th class="text-left px-4 py-2.5 font-medium">Herramienta</th>
+            ${isTool ? '<th class="text-left px-3 py-2.5 font-medium">Plan</th>' : ''}
             <th class="text-left px-3 py-2.5 font-medium">Costo (S/)</th>
             <th class="text-left px-3 py-2.5 font-medium">Margen mín (S/)</th>
             <th class="text-left px-3 py-2.5 font-medium">Margen máx (S/)</th>
             <th class="text-left px-3 py-2.5 font-medium">Propuesta (S/)</th>
           </tr>
         </thead>
+        ${isTool ? items.map(t => toolGroupHtml(t)).join('') : `
         <tbody class="divide-y divide-gray-50">
-          ${items.map(t => techCostRow(t, category)).join('')}
-        </tbody>
+          ${items.map(t => languageRowHtml(t)).join('')}
+        </tbody>`}
       </table>
     </div>
     <div id="tc-empty-${category}" class="hidden py-6 text-center text-xs text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200 mt-2">
@@ -177,7 +211,63 @@ function techCostSection(label, category) {
   </div>`;
 }
 
-function techCostRow(t, category) {
+function toolGroupHtml(t) {
+  const plans = normalizePlans(t);
+  t.plans = plans;
+  const avatar = t.image_url
+    ? `<div class="w-8 h-8 rounded-lg bg-white border border-gray-200/80 p-1 flex items-center justify-center shrink-0 shadow-sm"><img src="${esc(thumbUrl(t.image_url, 64))}" class="max-w-full max-h-full object-contain" alt="${esc(t.name)}"></div>`
+    : `<span class="w-8 h-8 rounded-lg bg-indigo-100 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0 shadow-sm">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
+
+  return `
+  <tbody data-tc-group="${esc(t.id)}" data-category="tool" data-name="${esc((t.name || '').toLowerCase())}" class="border-t border-gray-100 transition-colors">
+    ${toolRowsHtml(t, plans, avatar)}
+  </tbody>`;
+}
+
+function toolRowsHtml(t, plans, avatar) {
+  if (!avatar) {
+    avatar = t.image_url
+      ? `<div class="w-8 h-8 rounded-lg bg-white border border-gray-200/80 p-1 flex items-center justify-center shrink-0 shadow-sm"><img src="${esc(thumbUrl(t.image_url, 64))}" class="max-w-full max-h-full object-contain" alt="${esc(t.name)}"></div>`
+      : `<span class="w-8 h-8 rounded-lg bg-indigo-100 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0 shadow-sm">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
+  }
+  const isMax = plans.length >= 5;
+
+  return plans.map((p, idx) => {
+    const isFirst = idx === 0;
+    const cVal = p.costo ?? '';
+    const minVal = p.margen_min ?? '';
+    const maxVal = p.margen_max ?? '';
+    const nameVal = p.name ?? '';
+
+    return `
+    <tr data-tc-plan-row data-plan-index="${idx}" class="hover:bg-gray-50/60 transition-colors">
+      ${isFirst ? `
+      <td rowspan="${plans.length}" class="px-4 py-2.5 align-middle border-b border-gray-100 bg-white">
+        <div class="flex items-center gap-3">
+          ${avatar}
+          <div>
+            <span class="text-gray-800 whitespace-nowrap font-medium tc-item-name block">${esc(t.name)}</span>
+            ${plans.length > 1 ? `<span class="text-[10.5px] text-gray-400 font-normal">${plans.length} planes</span>` : ''}
+          </div>
+        </div>
+      </td>` : ''}
+      <td class="px-3 py-2 border-b border-gray-100">
+        <div class="flex items-center gap-1.5">
+          <input type="text" class="input text-xs py-1.5 w-32 tc-plan-input" data-field="name" placeholder="Nombre del plan..." data-initial="${esc(nameVal)}" value="${esc(nameVal)}">
+          <button type="button" class="tc-add-plan-btn w-6 h-6 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 flex items-center justify-center font-bold text-sm shrink-0 border border-emerald-200 transition-all ${isMax ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}" title="${isMax ? 'Máximo 5 planes alcanzado' : 'Añadir sub-plan'}" data-tool-id="${esc(t.id)}">+</button>
+          ${plans.length > 1 ? `
+          <button type="button" class="tc-del-plan-btn w-6 h-6 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-100 active:scale-95 flex items-center justify-center font-bold text-xs shrink-0 border border-rose-200 transition-all" title="Eliminar este plan" data-tool-id="${esc(t.id)}" data-plan-index="${idx}">✕</button>` : ''}
+        </div>
+      </td>
+      <td class="px-3 py-2 border-b border-gray-100"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-plan-input" data-field="costo" data-initial="${cVal}" value="${cVal}"></td>
+      <td class="px-3 py-2 border-b border-gray-100"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-plan-input" data-field="margen_min" data-initial="${minVal}" value="${minVal}"></td>
+      <td class="px-3 py-2 border-b border-gray-100"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-plan-input" data-field="margen_max" data-initial="${maxVal}" value="${maxVal}"></td>
+      <td class="px-3 py-2 text-xs text-gray-600 whitespace-nowrap tc-propuesta font-semibold border-b border-gray-100">${propuestaLabel(p)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function languageRowHtml(t) {
   const avatar = t.image_url
     ? `<div class="w-8 h-8 rounded-lg bg-white border border-gray-200/80 p-1 flex items-center justify-center shrink-0 shadow-sm"><img src="${esc(thumbUrl(t.image_url, 64))}" class="max-w-full max-h-full object-contain" alt="${esc(t.name)}"></div>`
     : `<span class="w-8 h-8 rounded-lg bg-indigo-100 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0 shadow-sm">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
@@ -185,7 +275,7 @@ function techCostRow(t, category) {
   const minVal = t.margen_min ?? '';
   const maxVal = t.margen_max ?? '';
   return `
-  <tr data-tc-row="${esc(t.id)}" data-category="${category}" data-name="${esc((t.name || '').toLowerCase())}">
+  <tr data-tc-row="${esc(t.id)}" data-category="language" data-name="${esc((t.name || '').toLowerCase())}" class="hover:bg-gray-50/60 transition-colors">
     <td class="px-4 py-2">
       <div class="flex items-center gap-3">
         ${avatar}
@@ -207,14 +297,6 @@ function propuestaLabel(t) {
   return `${fmtS(min)} – ${fmtS(max)}`;
 }
 
-function getRowValues(row) {
-  return {
-    costo: row.querySelector('[data-field="costo"]')?.value ?? '',
-    margen_min: row.querySelector('[data-field="margen_min"]')?.value ?? '',
-    margen_max: row.querySelector('[data-field="margen_max"]')?.value ?? '',
-  };
-}
-
 function wireTechCostModal() {
   const modalBody = document.getElementById('modal-body');
   if (!modalBody) return;
@@ -228,20 +310,35 @@ function wireTechCostModal() {
     let langVisible = 0;
     let toolVisible = 0;
 
-    const rows = modalBody.querySelectorAll('[data-tc-row]');
-    rows.forEach(row => {
+    // 1. Lenguajes
+    const langRows = modalBody.querySelectorAll('[data-tc-row]');
+    langRows.forEach(row => {
       const name = row.dataset.name || '';
-      const cat = row.dataset.category;
       const matchesQuery = !q || name.includes(q);
-      const matchesTab = (currentTab === 'all' || cat === currentTab);
+      const matchesTab = (currentTab === 'all' || currentTab === 'language');
 
       if (matchesQuery) {
-        if (cat === 'language') langVisible++;
-        if (cat === 'tool') toolVisible++;
+        langVisible++;
         totalVisible++;
       }
-
       row.style.display = (matchesQuery && matchesTab) ? '' : 'none';
+    });
+
+    // 2. Herramientas
+    const toolGroups = modalBody.querySelectorAll('[data-tc-group]');
+    toolGroups.forEach(group => {
+      const name = group.dataset.name || '';
+      const toolId = group.dataset.tcGroup;
+      const toolItem = (_techCatalog.tool || []).find(x => x.id === toolId);
+      const plansNames = (toolItem?.plans || []).map(p => (p.name || '').toLowerCase()).join(' ');
+      const matchesQuery = !q || name.includes(q) || plansNames.includes(q);
+      const matchesTab = (currentTab === 'all' || currentTab === 'tool');
+
+      if (matchesQuery) {
+        toolVisible++;
+        totalVisible++;
+      }
+      group.style.display = (matchesQuery && matchesTab) ? '' : 'none';
     });
 
     // Actualizar contadores en pestañas
@@ -323,42 +420,171 @@ function wireTechCostModal() {
     });
   }
 
-  // 2. Delegación de eventos (ultra liviano: 1 listener para input y 1 para focusout)
-  modalBody.addEventListener('input', e => {
-    const input = e.target.closest('.tc-input');
-    if (!input) return;
-    const row = input.closest('[data-tc-row]');
-    if (!row) return;
-    const propuestaEl = row.querySelector('.tc-propuesta');
-    if (propuestaEl) propuestaEl.textContent = propuestaLabel(getRowValues(row));
-  });
-
-  modalBody.addEventListener('focusout', e => {
-    const input = e.target.closest('.tc-input');
-    if (!input) return;
-    const row = input.closest('[data-tc-row]');
-    if (!row) return;
-
-    // Solo guardar si algún valor cambió respecto al inicial
-    const current = getRowValues(row);
-    const cInput = row.querySelector('[data-field="costo"]');
-    const minInput = row.querySelector('[data-field="margen_min"]');
-    const maxInput = row.querySelector('[data-field="margen_max"]');
-    if (
-      current.costo === cInput.dataset.initial &&
-      current.margen_min === minInput.dataset.initial &&
-      current.margen_max === maxInput.dataset.initial
-    ) {
+  // 3. Botones Agregar (+) y Eliminar (✕) sub-planes
+  modalBody.addEventListener('click', async e => {
+    const addBtn = e.target.closest('.tc-add-plan-btn');
+    if (addBtn) {
+      const toolId = addBtn.dataset.toolId;
+      const tool = (_techCatalog.tool || []).find(x => x.id === toolId);
+      if (!tool) return;
+      tool.plans = normalizePlans(tool);
+      if (tool.plans.length >= 5) {
+        toast('Máximo 5 planes por herramienta', 'warning');
+        return;
+      }
+      tool.plans.push({ name: '', costo: null, margen_min: null, margen_max: null });
+      const group = modalBody.querySelector(`[data-tc-group="${toolId}"]`);
+      if (group) {
+        group.innerHTML = toolRowsHtml(tool, tool.plans);
+        const nameInputs = group.querySelectorAll('input[data-field="name"]');
+        if (nameInputs.length) nameInputs[nameInputs.length - 1].focus();
+      }
+      saveToolPlans(tool, group);
       return;
     }
 
-    const id = row.dataset.tcRow;
-    const category = row.dataset.category;
-    saveTechCostRow(id, category, current, row, [cInput, minInput, maxInput]);
+    const delBtn = e.target.closest('.tc-del-plan-btn');
+    if (delBtn) {
+      const toolId = delBtn.dataset.toolId;
+      const idx = Number(delBtn.dataset.planIndex);
+      const tool = (_techCatalog.tool || []).find(x => x.id === toolId);
+      if (!tool) return;
+      tool.plans = normalizePlans(tool);
+      if (tool.plans.length <= 1) return;
+      tool.plans.splice(idx, 1);
+      const group = modalBody.querySelector(`[data-tc-group="${toolId}"]`);
+      if (group) {
+        group.innerHTML = toolRowsHtml(tool, tool.plans);
+      }
+      saveToolPlans(tool, group);
+      return;
+    }
+  });
+
+  // 4. Delegación de eventos live input (para propuesta instantánea)
+  modalBody.addEventListener('input', e => {
+    const input = e.target.closest('.tc-plan-input, .tc-input');
+    if (!input) return;
+
+    const planRow = input.closest('[data-tc-plan-row]');
+    if (planRow) {
+      const costo = planRow.querySelector('[data-field="costo"]')?.value ?? '';
+      const margen_min = planRow.querySelector('[data-field="margen_min"]')?.value ?? '';
+      const margen_max = planRow.querySelector('[data-field="margen_max"]')?.value ?? '';
+      const propEl = planRow.querySelector('.tc-propuesta');
+      if (propEl) propEl.textContent = propuestaLabel({ costo, margen_min, margen_max });
+      return;
+    }
+
+    const langRow = input.closest('[data-tc-row]');
+    if (langRow) {
+      const costo = langRow.querySelector('[data-field="costo"]')?.value ?? '';
+      const margen_min = langRow.querySelector('[data-field="margen_min"]')?.value ?? '';
+      const margen_max = langRow.querySelector('[data-field="margen_max"]')?.value ?? '';
+      const propEl = langRow.querySelector('.tc-propuesta');
+      if (propEl) propEl.textContent = propuestaLabel({ costo, margen_min, margen_max });
+    }
+  });
+
+  // 5. Delegación de eventos focusout (auto-guardado)
+  modalBody.addEventListener('focusout', e => {
+    const input = e.target.closest('.tc-plan-input, .tc-input');
+    if (!input) return;
+
+    // Si pertenece a una herramienta (con sub-planes)
+    const group = input.closest('[data-tc-group]');
+    if (group) {
+      const toolId = group.dataset.tcGroup;
+      const tool = (_techCatalog.tool || []).find(x => x.id === toolId);
+      if (!tool) return;
+
+      const planRows = group.querySelectorAll('[data-tc-plan-row]');
+      let changed = false;
+      const currentPlans = Array.from(planRows).map(pr => {
+        const nameInp = pr.querySelector('[data-field="name"]');
+        const costInp = pr.querySelector('[data-field="costo"]');
+        const minInp = pr.querySelector('[data-field="margen_min"]');
+        const maxInp = pr.querySelector('[data-field="margen_max"]');
+        if (
+          (nameInp && nameInp.value !== nameInp.dataset.initial) ||
+          (costInp && costInp.value !== costInp.dataset.initial) ||
+          (minInp && minInp.value !== minInp.dataset.initial) ||
+          (maxInp && maxInp.value !== maxInp.dataset.initial)
+        ) {
+          changed = true;
+        }
+        return {
+          name: nameInp ? nameInp.value.trim() : '',
+          costo: costInp && costInp.value !== '' ? Number(costInp.value) : null,
+          margen_min: minInp && minInp.value !== '' ? Number(minInp.value) : null,
+          margen_max: maxInp && maxInp.value !== '' ? Number(maxInp.value) : null,
+        };
+      });
+
+      if (changed) {
+        tool.plans = currentPlans;
+        saveToolPlans(tool, group);
+      }
+      return;
+    }
+
+    // Si pertenece a un lenguaje (fila única)
+    const langRow = input.closest('[data-tc-row]');
+    if (langRow) {
+      const cInput = langRow.querySelector('[data-field="costo"]');
+      const minInput = langRow.querySelector('[data-field="margen_min"]');
+      const maxInput = langRow.querySelector('[data-field="margen_max"]');
+      if (
+        cInput.value === cInput.dataset.initial &&
+        minInput.value === minInput.dataset.initial &&
+        maxInput.value === maxInput.dataset.initial
+      ) {
+        return;
+      }
+      const id = langRow.dataset.tcRow;
+      const values = {
+        costo: cInput.value,
+        margen_min: minInput.value,
+        margen_max: maxInput.value,
+      };
+      saveLanguageCostRow(id, values, langRow, [cInput, minInput, maxInput]);
+    }
   });
 }
 
-async function saveTechCostRow(id, category, values, row, inputs) {
+async function saveToolPlans(tool, group) {
+  try {
+    const plans = tool.plans || [];
+    const payload = {
+      costo: plans[0]?.costo ?? null,
+      margen_min: plans[0]?.margen_min ?? null,
+      margen_max: plans[0]?.margen_max ?? null,
+      plans: plans,
+    };
+    await api.put(`/technology-catalog/${tool.id}/cost`, payload);
+    Object.assign(tool, payload);
+    if (group) {
+      const planRows = group.querySelectorAll('[data-tc-plan-row]');
+      planRows.forEach((pr, i) => {
+        const p = plans[i] || {};
+        const nameInp = pr.querySelector('[data-field="name"]');
+        const costInp = pr.querySelector('[data-field="costo"]');
+        const minInp = pr.querySelector('[data-field="margen_min"]');
+        const maxInp = pr.querySelector('[data-field="margen_max"]');
+        if (nameInp) nameInp.dataset.initial = p.name ?? '';
+        if (costInp) costInp.dataset.initial = p.costo ?? '';
+        if (minInp) minInp.dataset.initial = p.margen_min ?? '';
+        if (maxInp) maxInp.dataset.initial = p.margen_max ?? '';
+      });
+      group.classList.add('bg-emerald-50/50');
+      setTimeout(() => group.classList.remove('bg-emerald-50/50'), 700);
+    }
+  } catch (err) {
+    toast(err.message || 'No se pudieron guardar los planes', 'error');
+  }
+}
+
+async function saveLanguageCostRow(id, values, row, inputs) {
   try {
     await api.put(`/technology-catalog/${id}/cost`, values);
     if (inputs) {
@@ -366,16 +592,18 @@ async function saveTechCostRow(id, category, values, row, inputs) {
       inputs[1].dataset.initial = values.margen_min;
       inputs[2].dataset.initial = values.margen_max;
     }
-    const list = _techCatalog[category] || [];
+    const list = _techCatalog.language || [];
     const item = list.find(x => x.id === id);
     if (item) Object.assign(item, {
       costo: values.costo === '' ? null : Number(values.costo),
       margen_min: values.margen_min === '' ? null : Number(values.margen_min),
       margen_max: values.margen_max === '' ? null : Number(values.margen_max),
     });
-    row?.classList.add('bg-green-50');
-    setTimeout(() => row?.classList.remove('bg-green-50'), 600);
-  } catch (err) { toast(err.message || 'No se pudo guardar el costo', 'error'); }
+    row?.classList.add('bg-emerald-50/50');
+    setTimeout(() => row?.classList.remove('bg-emerald-50/50'), 700);
+  } catch (err) {
+    toast(err.message || 'No se pudo guardar el costo', 'error');
+  }
 }
 
 function esc(s) {
