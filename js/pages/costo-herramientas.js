@@ -1,6 +1,6 @@
 import { api }      from '../api.js';
 import { toast, showModal, closeModal, spinner, icon } from '../utils.js';
-import { initTechStackBuilder } from '../components/tech-stack-builder.js?v=3';
+import { initTechStackBuilder } from '../components/tech-stack-builder.js?v=4';
 
 let _techCatalog = { language: [], tool: [] };
 let _currentTab = 'stack'; // 'stack' | 'catalog'
@@ -395,13 +395,22 @@ function propuestaLabel(p) {
   const hasMax = p.margen_max !== null && p.margen_max !== '' && p.margen_max !== undefined;
   if (!hasMin && !hasMax && !hasCost) return '—';
 
-  const min = Number(p.margen_min) || 0;
-  const max = Number(p.margen_max) || 0;
-  const diff = Math.abs(max - min);
   const sym = getCurSym(p.moneda);
   const periodoStr = p.periodo === 'año' ? ' / año' : ' / mes';
-  const fDiff = Number(diff).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${sym} ${fDiff}${periodoStr}`;
+  const min = Number(p.margen_min) || 0;
+  const max = Number(p.margen_max) || 0;
+  const costo = Number(p.costo) || 0;
+
+  // Precio Máximo para debatir precios con clientes
+  const pMax = max > 0 ? max : costo;
+  if (pMax === 0 && min === 0 && costo === 0) return 'Gratis';
+
+  const fMax = Number(pMax).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (min > 0 && min < pMax) {
+    const fMin = Number(min).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `${sym} ${fMax}${periodoStr} (Mín: ${sym} ${fMin})`;
+  }
+  return `${sym} ${fMax}${periodoStr}`;
 }
 
 function wireTechCostModal() {
