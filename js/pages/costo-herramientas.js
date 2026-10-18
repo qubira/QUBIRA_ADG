@@ -3,6 +3,16 @@ import { toast, showModal, closeModal, spinner, icon } from '../utils.js';
 
 let _techCatalog = { language: [], tool: [] };
 
+const CURRENCY_SYMBOLS = {
+  PEN: 'S/',
+  USD: '$',
+  EUR: '€',
+};
+
+function getCurSym(moneda) {
+  return CURRENCY_SYMBOLS[moneda] || 'S/';
+}
+
 function thumbUrl(url, size = 64) {
   if (!url) return '';
   if (typeof url === 'string' && url.includes('res.cloudinary.com') && url.includes('/image/upload/') && !url.includes('/image/upload/w_')) {
@@ -31,12 +41,14 @@ function load() {
 }
 
 function normalizePlans(t) {
+  const defaultMoneda = t.moneda || 'PEN';
   if (Array.isArray(t.plans) && t.plans.length > 0) {
     return t.plans.map(p => ({
       name: p.name ?? '',
       costo: p.costo ?? null,
       margen_min: p.margen_min ?? null,
       margen_max: p.margen_max ?? null,
+      moneda: p.moneda || defaultMoneda,
     }));
   }
   return [{
@@ -44,6 +56,7 @@ function normalizePlans(t) {
     costo: t.costo ?? null,
     margen_min: t.margen_min ?? null,
     margen_max: t.margen_max ?? null,
+    moneda: defaultMoneda,
   }];
 }
 
@@ -98,9 +111,11 @@ function techRowPreview(t) {
   if (t.category === 'tool' && plans.length > 1) {
     badge = `<span class="text-xs text-indigo-600 font-semibold bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded">${plans.length} planes</span>`;
   } else if (plans[0]?.costo != null && plans[0]?.costo !== '') {
-    badge = `<span class="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">S/ ${Number(plans[0].costo).toFixed(2)}</span>`;
+    const sym = getCurSym(plans[0].moneda || t.moneda);
+    badge = `<span class="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">${sym} ${Number(plans[0].costo).toFixed(2)}</span>`;
   } else if (t.costo != null && t.costo !== '') {
-    badge = `<span class="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">S/ ${Number(t.costo).toFixed(2)}</span>`;
+    const sym = getCurSym(t.moneda);
+    badge = `<span class="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded">${sym} ${Number(t.costo).toFixed(2)}</span>`;
   }
 
   return `
@@ -111,8 +126,10 @@ function techRowPreview(t) {
   </div>`;
 }
 
-function fmtS(v) {
-  return v == null || v === '' ? '—' : `S/ ${Number(v).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function fmtMoney(v, moneda = 'PEN') {
+  if (v == null || v === '') return '—';
+  const sym = getCurSym(moneda);
+  return `${sym} ${Number(v).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function openTechCostModal() {
@@ -122,9 +139,9 @@ export function openTechCostModal() {
 
   showModal('Herramientas Costo', `
     <!-- Encabezado fijo con descripción, pestañas y búsqueda inteligente -->
-    <div class="sticky -top-4 -mx-6 px-6 pt-4 pb-3 bg-white border-b border-gray-100 z-20 shadow-[0_4px_12px_-4px_rgba(0,0,0,0.05)] mb-4">
+    <div class="sticky -top-4 -mx-6 px-6 pt-4 pb-3 bg-white border-b border-gray-100 z-30 shadow-[0_4px_12px_-4px_rgba(0,0,0,0.05)] mb-4">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-        <p class="text-xs text-gray-500 max-w-xl">Costo de referencia y margen (S/) para armar el rango de propuesta. Se guarda automáticamente al salir del campo.</p>
+        <p class="text-xs text-gray-500 max-w-xl">Costo de referencia y margen para armar el rango de propuesta en Soles (S/), Dólares ($) o Euros (€). Se guarda automáticamente.</p>
         <div class="flex items-center gap-1.5 shrink-0 bg-gray-100 p-1 rounded-lg">
           <button type="button" class="tc-tab-btn px-2.5 py-1 text-xs font-semibold rounded-md bg-white shadow-sm text-gray-900 transition-all" data-tab="all">
             Todos (<span id="tc-count-all">${totalCount}</span>)
@@ -177,33 +194,52 @@ export function openTechCostModal() {
   wireTechCostModal();
 }
 
+function currencySelectHtml(currentMoneda = 'PEN', extraClass = '') {
+  return `
+  <select data-field="moneda" data-initial="${currentMoneda}" class="tc-currency-select ${extraClass} text-xs py-1 px-1 rounded-md border border-gray-200 bg-gray-50 hover:bg-white text-gray-700 font-bold focus:border-indigo-400 focus:outline-none transition-all cursor-pointer shrink-0">
+    <option value="PEN" ${currentMoneda === 'PEN' ? 'selected' : ''}>S/ (PEN)</option>
+    <option value="USD" ${currentMoneda === 'USD' ? 'selected' : ''}>$ (USD)</option>
+    <option value="EUR" ${currentMoneda === 'EUR' ? 'selected' : ''}>€ (EUR)</option>
+  </select>`;
+}
+
 function techCostSection(label, category) {
   const items = _techCatalog[category] || [];
   const isTool = category === 'tool';
   return `
   <div>
-    <div class="flex items-center justify-between mb-2">
-      <h4 class="font-semibold text-gray-900">${label}</h4>
-      ${isTool ? '<span class="text-xs text-gray-400 font-medium">Hasta 5 planes por herramienta con denominación personalizada</span>' : ''}
-    </div>
-    ${items.length === 0 ? '<p class="text-xs text-gray-400 py-3">Sin registrar</p>' : `
-    <div class="overflow-x-auto border border-gray-100 rounded-xl" id="tc-table-wrap-${category}">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
-          <tr>
-            <th class="text-left px-4 py-2.5 font-medium">Herramienta</th>
-            ${isTool ? '<th class="text-left px-3 py-2.5 font-medium">Plan</th>' : ''}
-            <th class="text-left px-3 py-2.5 font-medium">Costo (S/)</th>
-            <th class="text-left px-3 py-2.5 font-medium">Margen mín (S/)</th>
-            <th class="text-left px-3 py-2.5 font-medium">Margen máx (S/)</th>
-            <th class="text-left px-3 py-2.5 font-medium">Propuesta (S/)</th>
-          </tr>
-        </thead>
-        ${isTool ? items.map(t => toolGroupHtml(t)).join('') : `
-        <tbody class="divide-y divide-gray-50">
-          ${items.map(t => languageRowHtml(t)).join('')}
-        </tbody>`}
-      </table>
+    ${items.length === 0 ? `
+      <div class="flex items-center justify-between mb-2">
+        <h4 class="font-semibold text-gray-900">${label}</h4>
+      </div>
+      <p class="text-xs text-gray-400 py-3">Sin registrar</p>` : `
+    <div class="border border-gray-200/90 rounded-xl overflow-hidden shadow-sm" id="tc-table-wrap-${category}">
+      <div class="overflow-x-auto overflow-y-auto max-h-[56vh]">
+        <table class="w-full text-sm border-collapse">
+          <thead class="sticky top-0 z-20 shadow-[0_2px_6px_-1px_rgba(0,0,0,0.06)]">
+            <tr class="bg-white border-b border-gray-100">
+              <th colspan="${isTool ? 6 : 5}" class="px-4 py-2.5 text-left bg-white">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-gray-900 text-sm">${label}</span>
+                  ${isTool ? '<span class="text-xs text-gray-400 font-medium">Hasta 5 planes por herramienta con denominación personalizada</span>' : ''}
+                </div>
+              </th>
+            </tr>
+            <tr class="bg-gray-50 text-gray-500 text-xs uppercase border-b border-gray-200">
+              <th class="text-left px-4 py-2.5 font-medium bg-gray-50">Herramienta</th>
+              ${isTool ? '<th class="text-left px-3 py-2.5 font-medium bg-gray-50">Plan</th>' : ''}
+              <th class="text-left px-3 py-2.5 font-medium bg-gray-50">Costo</th>
+              <th class="text-left px-3 py-2.5 font-medium bg-gray-50">Margen mín</th>
+              <th class="text-left px-3 py-2.5 font-medium bg-gray-50">Margen máx</th>
+              <th class="text-left px-3 py-2.5 font-medium bg-gray-50">Propuesta</th>
+            </tr>
+          </thead>
+          ${isTool ? items.map(t => toolGroupHtml(t)).join('') : `
+          <tbody class="divide-y divide-gray-50">
+            ${items.map(t => languageRowHtml(t)).join('')}
+          </tbody>`}
+        </table>
+      </div>
     </div>
     <div id="tc-empty-${category}" class="hidden py-6 text-center text-xs text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200 mt-2">
       No se encontraron ${label.toLowerCase()} que coincidan con el filtro.
@@ -238,6 +274,7 @@ function toolRowsHtml(t, plans, avatar) {
     const minVal = p.margen_min ?? '';
     const maxVal = p.margen_max ?? '';
     const nameVal = p.name ?? '';
+    const curVal = p.moneda || t.moneda || 'PEN';
 
     return `
     <tr data-tc-plan-row data-plan-index="${idx}" class="hover:bg-gray-50/60 transition-colors">
@@ -259,9 +296,14 @@ function toolRowsHtml(t, plans, avatar) {
           <button type="button" class="tc-del-plan-btn w-6 h-6 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-100 active:scale-95 flex items-center justify-center font-bold text-xs shrink-0 border border-rose-200 transition-all" title="Eliminar este plan" data-tool-id="${esc(t.id)}" data-plan-index="${idx}">✕</button>` : ''}
         </div>
       </td>
-      <td class="px-3 py-2 border-b border-gray-100"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-plan-input" data-field="costo" data-initial="${cVal}" value="${cVal}"></td>
-      <td class="px-3 py-2 border-b border-gray-100"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-plan-input" data-field="margen_min" data-initial="${minVal}" value="${minVal}"></td>
-      <td class="px-3 py-2 border-b border-gray-100"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-plan-input" data-field="margen_max" data-initial="${maxVal}" value="${maxVal}"></td>
+      <td class="px-3 py-2 border-b border-gray-100">
+        <div class="flex items-center gap-1.5">
+          ${currencySelectHtml(curVal)}
+          <input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-20 tc-plan-input" data-field="costo" placeholder="0.00" data-initial="${cVal}" value="${cVal}">
+        </div>
+      </td>
+      <td class="px-3 py-2 border-b border-gray-100"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-20 tc-plan-input" data-field="margen_min" placeholder="0.00" data-initial="${minVal}" value="${minVal}"></td>
+      <td class="px-3 py-2 border-b border-gray-100"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-20 tc-plan-input" data-field="margen_max" placeholder="0.00" data-initial="${maxVal}" value="${maxVal}"></td>
       <td class="px-3 py-2 text-xs text-gray-600 whitespace-nowrap tc-propuesta font-semibold border-b border-gray-100">${propuestaLabel(p)}</td>
     </tr>`;
   }).join('');
@@ -274,6 +316,7 @@ function languageRowHtml(t) {
   const cVal = t.costo ?? '';
   const minVal = t.margen_min ?? '';
   const maxVal = t.margen_max ?? '';
+  const curVal = t.moneda || 'PEN';
   return `
   <tr data-tc-row="${esc(t.id)}" data-category="language" data-name="${esc((t.name || '').toLowerCase())}" class="hover:bg-gray-50/60 transition-colors">
     <td class="px-4 py-2">
@@ -282,19 +325,27 @@ function languageRowHtml(t) {
         <span class="text-gray-800 whitespace-nowrap font-medium tc-item-name">${esc(t.name)}</span>
       </div>
     </td>
-    <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-input" data-field="costo" data-initial="${cVal}" value="${cVal}"></td>
-    <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-input" data-field="margen_min" data-initial="${minVal}" value="${minVal}"></td>
-    <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-input" data-field="margen_max" data-initial="${maxVal}" value="${maxVal}"></td>
+    <td class="px-3 py-2">
+      <div class="flex items-center gap-1.5">
+        ${currencySelectHtml(curVal)}
+        <input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-20 tc-input" data-field="costo" placeholder="0.00" data-initial="${cVal}" value="${cVal}">
+      </div>
+    </td>
+    <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-20 tc-input" data-field="margen_min" placeholder="0.00" data-initial="${minVal}" value="${minVal}"></td>
+    <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-20 tc-input" data-field="margen_max" placeholder="0.00" data-initial="${maxVal}" value="${maxVal}"></td>
     <td class="px-3 py-2 text-xs text-gray-600 whitespace-nowrap tc-propuesta font-semibold">${propuestaLabel(t)}</td>
   </tr>`;
 }
 
-function propuestaLabel(t) {
-  if (t.costo == null || t.costo === '') return '—';
-  const costo = Number(t.costo) || 0;
-  const min = costo + (Number(t.margen_min) || 0);
-  const max = costo + (Number(t.margen_max) || 0);
-  return `${fmtS(min)} – ${fmtS(max)}`;
+function propuestaLabel(p) {
+  if (p.costo == null || p.costo === '') return '—';
+  const costo = Number(p.costo) || 0;
+  const min = costo + (Number(p.margen_min) || 0);
+  const max = costo + (Number(p.margen_max) || 0);
+  const sym = getCurSym(p.moneda);
+  const fMin = Number(min).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fMax = Number(max).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${sym} ${fMin} – ${sym} ${fMax}`;
 }
 
 function wireTechCostModal() {
@@ -432,7 +483,8 @@ function wireTechCostModal() {
         toast('Máximo 5 planes por herramienta', 'warning');
         return;
       }
-      tool.plans.push({ name: '', costo: null, margen_min: null, margen_max: null });
+      const lastMoneda = tool.plans[tool.plans.length - 1]?.moneda || tool.moneda || 'PEN';
+      tool.plans.push({ name: '', costo: null, margen_min: null, margen_max: null, moneda: lastMoneda });
       const group = modalBody.querySelector(`[data-tc-group="${toolId}"]`);
       if (group) {
         group.innerHTML = toolRowsHtml(tool, tool.plans);
@@ -461,7 +513,54 @@ function wireTechCostModal() {
     }
   });
 
-  // 4. Delegación de eventos live input (para propuesta instantánea)
+  // 4. Selector de moneda (change event)
+  modalBody.addEventListener('change', e => {
+    const sel = e.target.closest('.tc-currency-select');
+    if (!sel) return;
+    const newMoneda = sel.value;
+
+    const planRow = sel.closest('[data-tc-plan-row]');
+    if (planRow) {
+      const costo = planRow.querySelector('[data-field="costo"]')?.value ?? '';
+      const margen_min = planRow.querySelector('[data-field="margen_min"]')?.value ?? '';
+      const margen_max = planRow.querySelector('[data-field="margen_max"]')?.value ?? '';
+      const propEl = planRow.querySelector('.tc-propuesta');
+      if (propEl) propEl.textContent = propuestaLabel({ costo, margen_min, margen_max, moneda: newMoneda });
+
+      const group = sel.closest('[data-tc-group]');
+      if (group) {
+        const toolId = group.dataset.tcGroup;
+        const tool = (_techCatalog.tool || []).find(x => x.id === toolId);
+        if (tool) {
+          collectAndSaveToolPlans(tool, group);
+        }
+      }
+      return;
+    }
+
+    const langRow = sel.closest('[data-tc-row]');
+    if (langRow) {
+      const costo = langRow.querySelector('[data-field="costo"]')?.value ?? '';
+      const margen_min = langRow.querySelector('[data-field="margen_min"]')?.value ?? '';
+      const margen_max = langRow.querySelector('[data-field="margen_max"]')?.value ?? '';
+      const propEl = langRow.querySelector('.tc-propuesta');
+      if (propEl) propEl.textContent = propuestaLabel({ costo, margen_min, margen_max, moneda: newMoneda });
+
+      const id = langRow.dataset.tcRow;
+      const cInput = langRow.querySelector('[data-field="costo"]');
+      const minInput = langRow.querySelector('[data-field="margen_min"]');
+      const maxInput = langRow.querySelector('[data-field="margen_max"]');
+      const values = {
+        costo,
+        margen_min,
+        margen_max,
+        moneda: newMoneda,
+      };
+      saveLanguageCostRow(id, values, langRow, [cInput, minInput, maxInput, sel]);
+    }
+  });
+
+  // 5. Delegación de eventos live input (para propuesta instantánea)
   modalBody.addEventListener('input', e => {
     const input = e.target.closest('.tc-plan-input, .tc-input');
     if (!input) return;
@@ -471,8 +570,9 @@ function wireTechCostModal() {
       const costo = planRow.querySelector('[data-field="costo"]')?.value ?? '';
       const margen_min = planRow.querySelector('[data-field="margen_min"]')?.value ?? '';
       const margen_max = planRow.querySelector('[data-field="margen_max"]')?.value ?? '';
+      const moneda = planRow.querySelector('[data-field="moneda"]')?.value || 'PEN';
       const propEl = planRow.querySelector('.tc-propuesta');
-      if (propEl) propEl.textContent = propuestaLabel({ costo, margen_min, margen_max });
+      if (propEl) propEl.textContent = propuestaLabel({ costo, margen_min, margen_max, moneda });
       return;
     }
 
@@ -481,12 +581,13 @@ function wireTechCostModal() {
       const costo = langRow.querySelector('[data-field="costo"]')?.value ?? '';
       const margen_min = langRow.querySelector('[data-field="margen_min"]')?.value ?? '';
       const margen_max = langRow.querySelector('[data-field="margen_max"]')?.value ?? '';
+      const moneda = langRow.querySelector('[data-field="moneda"]')?.value || 'PEN';
       const propEl = langRow.querySelector('.tc-propuesta');
-      if (propEl) propEl.textContent = propuestaLabel({ costo, margen_min, margen_max });
+      if (propEl) propEl.textContent = propuestaLabel({ costo, margen_min, margen_max, moneda });
     }
   });
 
-  // 5. Delegación de eventos focusout (auto-guardado)
+  // 6. Delegación de eventos focusout (auto-guardado)
   modalBody.addEventListener('focusout', e => {
     const input = e.target.closest('.tc-plan-input, .tc-input');
     if (!input) return;
@@ -500,30 +601,25 @@ function wireTechCostModal() {
 
       const planRows = group.querySelectorAll('[data-tc-plan-row]');
       let changed = false;
-      const currentPlans = Array.from(planRows).map(pr => {
+      planRows.forEach(pr => {
         const nameInp = pr.querySelector('[data-field="name"]');
         const costInp = pr.querySelector('[data-field="costo"]');
         const minInp = pr.querySelector('[data-field="margen_min"]');
         const maxInp = pr.querySelector('[data-field="margen_max"]');
+        const monSel = pr.querySelector('[data-field="moneda"]');
         if (
           (nameInp && nameInp.value !== nameInp.dataset.initial) ||
           (costInp && costInp.value !== costInp.dataset.initial) ||
           (minInp && minInp.value !== minInp.dataset.initial) ||
-          (maxInp && maxInp.value !== maxInp.dataset.initial)
+          (maxInp && maxInp.value !== maxInp.dataset.initial) ||
+          (monSel && monSel.value !== monSel.dataset.initial)
         ) {
           changed = true;
         }
-        return {
-          name: nameInp ? nameInp.value.trim() : '',
-          costo: costInp && costInp.value !== '' ? Number(costInp.value) : null,
-          margen_min: minInp && minInp.value !== '' ? Number(minInp.value) : null,
-          margen_max: maxInp && maxInp.value !== '' ? Number(maxInp.value) : null,
-        };
       });
 
       if (changed) {
-        tool.plans = currentPlans;
-        saveToolPlans(tool, group);
+        collectAndSaveToolPlans(tool, group);
       }
       return;
     }
@@ -534,10 +630,12 @@ function wireTechCostModal() {
       const cInput = langRow.querySelector('[data-field="costo"]');
       const minInput = langRow.querySelector('[data-field="margen_min"]');
       const maxInput = langRow.querySelector('[data-field="margen_max"]');
+      const monSel = langRow.querySelector('[data-field="moneda"]');
       if (
         cInput.value === cInput.dataset.initial &&
         minInput.value === minInput.dataset.initial &&
-        maxInput.value === maxInput.dataset.initial
+        maxInput.value === maxInput.dataset.initial &&
+        (!monSel || monSel.value === monSel.dataset.initial)
       ) {
         return;
       }
@@ -546,10 +644,31 @@ function wireTechCostModal() {
         costo: cInput.value,
         margen_min: minInput.value,
         margen_max: maxInput.value,
+        moneda: monSel ? monSel.value : 'PEN',
       };
-      saveLanguageCostRow(id, values, langRow, [cInput, minInput, maxInput]);
+      saveLanguageCostRow(id, values, langRow, [cInput, minInput, maxInput, monSel]);
     }
   });
+}
+
+function collectAndSaveToolPlans(tool, group) {
+  const planRows = group.querySelectorAll('[data-tc-plan-row]');
+  const currentPlans = Array.from(planRows).map(pr => {
+    const nameInp = pr.querySelector('[data-field="name"]');
+    const costInp = pr.querySelector('[data-field="costo"]');
+    const minInp = pr.querySelector('[data-field="margen_min"]');
+    const maxInp = pr.querySelector('[data-field="margen_max"]');
+    const monSel = pr.querySelector('[data-field="moneda"]');
+    return {
+      name: nameInp ? nameInp.value.trim() : '',
+      costo: costInp && costInp.value !== '' ? Number(costInp.value) : null,
+      margen_min: minInp && minInp.value !== '' ? Number(minInp.value) : null,
+      margen_max: maxInp && maxInp.value !== '' ? Number(maxInp.value) : null,
+      moneda: monSel ? monSel.value : 'PEN',
+    };
+  });
+  tool.plans = currentPlans;
+  saveToolPlans(tool, group);
 }
 
 async function saveToolPlans(tool, group) {
@@ -559,6 +678,7 @@ async function saveToolPlans(tool, group) {
       costo: plans[0]?.costo ?? null,
       margen_min: plans[0]?.margen_min ?? null,
       margen_max: plans[0]?.margen_max ?? null,
+      moneda: plans[0]?.moneda ?? 'PEN',
       plans: plans,
     };
     await api.put(`/technology-catalog/${tool.id}/cost`, payload);
@@ -571,10 +691,12 @@ async function saveToolPlans(tool, group) {
         const costInp = pr.querySelector('[data-field="costo"]');
         const minInp = pr.querySelector('[data-field="margen_min"]');
         const maxInp = pr.querySelector('[data-field="margen_max"]');
+        const monSel = pr.querySelector('[data-field="moneda"]');
         if (nameInp) nameInp.dataset.initial = p.name ?? '';
         if (costInp) costInp.dataset.initial = p.costo ?? '';
         if (minInp) minInp.dataset.initial = p.margen_min ?? '';
         if (maxInp) maxInp.dataset.initial = p.margen_max ?? '';
+        if (monSel) monSel.dataset.initial = p.moneda ?? 'PEN';
       });
       group.classList.add('bg-emerald-50/50');
       setTimeout(() => group.classList.remove('bg-emerald-50/50'), 700);
@@ -588,9 +710,10 @@ async function saveLanguageCostRow(id, values, row, inputs) {
   try {
     await api.put(`/technology-catalog/${id}/cost`, values);
     if (inputs) {
-      inputs[0].dataset.initial = values.costo;
-      inputs[1].dataset.initial = values.margen_min;
-      inputs[2].dataset.initial = values.margen_max;
+      if (inputs[0]) inputs[0].dataset.initial = values.costo;
+      if (inputs[1]) inputs[1].dataset.initial = values.margen_min;
+      if (inputs[2]) inputs[2].dataset.initial = values.margen_max;
+      if (inputs[3]) inputs[3].dataset.initial = values.moneda;
     }
     const list = _techCatalog.language || [];
     const item = list.find(x => x.id === id);
@@ -598,6 +721,7 @@ async function saveLanguageCostRow(id, values, row, inputs) {
       costo: values.costo === '' ? null : Number(values.costo),
       margen_min: values.margen_min === '' ? null : Number(values.margen_min),
       margen_max: values.margen_max === '' ? null : Number(values.margen_max),
+      moneda: values.moneda || 'PEN',
     });
     row?.classList.add('bg-emerald-50/50');
     setTimeout(() => row?.classList.remove('bg-emerald-50/50'), 700);
