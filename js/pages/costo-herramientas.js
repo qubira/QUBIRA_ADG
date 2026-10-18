@@ -478,14 +478,14 @@ function wireTechCostModal() {
       const toolId = addBtn.dataset.toolId;
       const tool = (_techCatalog.tool || []).find(x => x.id === toolId);
       if (!tool) return;
-      tool.plans = normalizePlans(tool);
+      const group = modalBody.querySelector(`[data-tc-group="${toolId}"]`);
+      tool.plans = getPlansFromGroupDom(group, tool);
       if (tool.plans.length >= 5) {
         toast('Máximo 5 planes por herramienta', 'warning');
         return;
       }
       const lastMoneda = tool.plans[tool.plans.length - 1]?.moneda || tool.moneda || 'PEN';
       tool.plans.push({ name: '', costo: null, margen_min: null, margen_max: null, moneda: lastMoneda });
-      const group = modalBody.querySelector(`[data-tc-group="${toolId}"]`);
       if (group) {
         group.innerHTML = toolRowsHtml(tool, tool.plans);
         const nameInputs = group.querySelectorAll('input[data-field="name"]');
@@ -501,10 +501,10 @@ function wireTechCostModal() {
       const idx = Number(delBtn.dataset.planIndex);
       const tool = (_techCatalog.tool || []).find(x => x.id === toolId);
       if (!tool) return;
-      tool.plans = normalizePlans(tool);
+      const group = modalBody.querySelector(`[data-tc-group="${toolId}"]`);
+      tool.plans = getPlansFromGroupDom(group, tool);
       if (tool.plans.length <= 1) return;
       tool.plans.splice(idx, 1);
-      const group = modalBody.querySelector(`[data-tc-group="${toolId}"]`);
       if (group) {
         group.innerHTML = toolRowsHtml(tool, tool.plans);
       }
@@ -651,9 +651,11 @@ function wireTechCostModal() {
   });
 }
 
-function collectAndSaveToolPlans(tool, group) {
+function getPlansFromGroupDom(group, fallbackTool) {
+  if (!group) return normalizePlans(fallbackTool);
   const planRows = group.querySelectorAll('[data-tc-plan-row]');
-  const currentPlans = Array.from(planRows).map(pr => {
+  if (!planRows.length) return normalizePlans(fallbackTool);
+  return Array.from(planRows).map(pr => {
     const nameInp = pr.querySelector('[data-field="name"]');
     const costInp = pr.querySelector('[data-field="costo"]');
     const minInp = pr.querySelector('[data-field="margen_min"]');
@@ -664,10 +666,13 @@ function collectAndSaveToolPlans(tool, group) {
       costo: costInp && costInp.value !== '' ? Number(costInp.value) : null,
       margen_min: minInp && minInp.value !== '' ? Number(minInp.value) : null,
       margen_max: maxInp && maxInp.value !== '' ? Number(maxInp.value) : null,
-      moneda: monSel ? monSel.value : 'PEN',
+      moneda: monSel ? monSel.value : (fallbackTool.moneda || 'PEN'),
     };
   });
-  tool.plans = currentPlans;
+}
+
+function collectAndSaveToolPlans(tool, group) {
+  tool.plans = getPlansFromGroupDom(group, tool);
   saveToolPlans(tool, group);
 }
 
