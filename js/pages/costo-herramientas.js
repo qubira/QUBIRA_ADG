@@ -1,6 +1,6 @@
 import { api }      from '../api.js';
 import { toast, showModal, closeModal, spinner, icon } from '../utils.js';
-import { initTechStackBuilder } from '../components/tech-stack-builder.js?v=4';
+import { initTechStackBuilder } from '../components/tech-stack-builder.js?v=5';
 
 let _techCatalog = { language: [], tool: [] };
 let _currentTab = 'stack'; // 'stack' | 'catalog'
@@ -393,7 +393,7 @@ function propuestaLabel(p) {
   const hasCost = p.costo !== null && p.costo !== '' && p.costo !== undefined;
   const hasMin = p.margen_min !== null && p.margen_min !== '' && p.margen_min !== undefined;
   const hasMax = p.margen_max !== null && p.margen_max !== '' && p.margen_max !== undefined;
-  if (!hasMin && !hasMax && !hasCost) return '—';
+  if (!hasMin && !hasMax && !hasCost) return 'Indefinido';
 
   const sym = getCurSym(p.moneda);
   const periodoStr = p.periodo === 'año' ? ' / año' : ' / mes';
