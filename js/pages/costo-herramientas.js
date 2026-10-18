@@ -1,7 +1,9 @@
 import { api }      from '../api.js';
 import { toast, showModal, closeModal, spinner, icon } from '../utils.js';
+import { initTechStackBuilder } from '../components/tech-stack-builder.js';
 
 let _techCatalog = { language: [], tool: [] };
+let _currentTab = 'stack'; // 'stack' | 'catalog'
 
 const CURRENCY_SYMBOLS = {
   PEN: 'S/',
@@ -23,7 +25,7 @@ function thumbUrl(url, size = 64) {
 
 export function render() {
   const main = document.getElementById('main');
-  main.innerHTML = `<div class="p-6 max-w-5xl mx-auto" id="costo-herramientas-page">${spinner()}</div>`;
+  main.innerHTML = `<div class="p-6 max-w-7xl mx-auto" id="costo-herramientas-page">${spinner()}</div>`;
   load();
 }
 
@@ -68,24 +70,56 @@ function renderPage() {
   if (!c) return;
 
   c.innerHTML = `
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Costo por OPP HERRAMIENTAS</h1>
-        <p class="text-sm text-gray-500 mt-1">Lista reutilizable de lenguajes y herramientas con costos y márgenes de propuesta definidos para OPP.</p>
+        <h1 class="text-2xl font-bold text-gray-900">Herramientas & Tech Stack</h1>
+        <p class="text-sm text-gray-500 mt-1">Ramificaciones de tecnologías (Tech Stack) y matriz de costos/planes para proyectos.</p>
       </div>
       <div>
         <button type="button" id="open-tech-cost-btn" class="btn-primary flex items-center gap-2">
-          ${icon('payments', 18)} Herramientas Costo
+          ${icon('payments', 18)} Matriz de Costos OPP
         </button>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-      ${techPreviewColumn('Lenguajes', 'language')}
-      ${techPreviewColumn('Herramientas', 'tool')}
-    </div>`;
+    <!-- Pestañas -->
+    <div class="flex items-center gap-3 border-b border-gray-200 mb-6">
+      <button type="button" id="tab-btn-stack" class="pb-3 px-3 text-sm font-semibold transition-colors flex items-center gap-2 ${_currentTab === 'stack' ? 'border-b-2 border-primary-600 text-primary-600' : 'text-gray-500 hover:text-gray-700'}">
+        <span class="text-base">🌳</span> Tech Stack (Ramificaciones)
+      </button>
+      <button type="button" id="tab-btn-catalog" class="pb-3 px-3 text-sm font-semibold transition-colors flex items-center gap-2 ${_currentTab === 'catalog' ? 'border-b-2 border-primary-600 text-primary-600' : 'text-gray-500 hover:text-gray-700'}">
+        <span class="text-base">📋</span> Catálogo & Costos
+      </button>
+    </div>
 
-  document.getElementById('open-tech-cost-btn').addEventListener('click', openTechCostModal);
+    <div id="tab-content-container"></div>`;
+
+  document.getElementById('tab-btn-stack')?.addEventListener('click', () => switchTab('stack'));
+  document.getElementById('tab-btn-catalog')?.addEventListener('click', () => switchTab('catalog'));
+  document.getElementById('open-tech-cost-btn')?.addEventListener('click', openTechCostModal);
+
+  renderTabContent();
+}
+
+function switchTab(tab) {
+  _currentTab = tab;
+  renderPage();
+}
+
+function renderTabContent() {
+  const container = document.getElementById('tab-content-container');
+  if (!container) return;
+
+  if (_currentTab === 'stack') {
+    container.innerHTML = `<div id="tech-stack-mount"></div>`;
+    initTechStackBuilder(document.getElementById('tech-stack-mount'), { role: 'ADG' });
+  } else {
+    container.innerHTML = `
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+        ${techPreviewColumn('Lenguajes', 'language')}
+        ${techPreviewColumn('Herramientas', 'tool')}
+      </div>`;
+  }
 }
 
 function techPreviewColumn(label, category) {
