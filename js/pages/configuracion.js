@@ -103,7 +103,7 @@ function techCatalogColumn(label, category) {
     <div class="flex gap-2 items-center">
       <input type="file" accept="image/*" id="cat-tech-img-${category}" class="hidden" data-category="${category}">
       <button type="button" class="cat-tech-img-btn w-9 h-9 shrink-0 rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50 hover:bg-gray-100" data-category="${category}" title="Imagen (opcional)">
-        <img id="cat-tech-img-preview-${category}" class="hidden w-full h-full object-cover" alt="">
+        <img id="cat-tech-img-preview-${category}" class="hidden w-full h-full object-contain p-0.5" alt="">
         <span id="cat-tech-img-icon-${category}" class="material-icons text-gray-400" style="font-size:18px">image</span>
       </button>
       <input id="cat-tech-new-${category}" class="input text-sm flex-1" placeholder="${category === 'tool' ? 'Ej: Figma, Docker...' : 'Ej: JavaScript, Python...'}">
@@ -114,8 +114,8 @@ function techCatalogColumn(label, category) {
 
 function catalogTechRow(t, category) {
   const avatar = t.image_url
-    ? `<img src="${esc(thumbUrl(t.image_url, 64))}" width="24" height="24" loading="lazy" decoding="async" class="w-6 h-6 rounded object-cover shrink-0" alt="">`
-    : `<span class="w-6 h-6 rounded bg-indigo-200 flex items-center justify-center text-[10px] font-bold text-indigo-700 shrink-0">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
+    ? `<div class="w-8 h-8 rounded-lg bg-white border border-gray-200/80 p-1 flex items-center justify-center shrink-0 shadow-sm"><img src="${esc(thumbUrl(t.image_url, 64))}" class="max-w-full max-h-full object-contain" alt="${esc(t.name)}"></div>`
+    : `<span class="w-8 h-8 rounded-lg bg-indigo-100 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0 shadow-sm">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
   return `
   <div class="flex items-center gap-3 py-2.5">
     ${avatar}
@@ -197,7 +197,7 @@ function openCatalogTechEditModal(t) {
   const modal = showModal('Editar tecnología del catálogo', `
     <div class="flex flex-col items-center gap-3 mb-4">
       <div id="cat-tech-edit-dropzone" class="relative w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary-400 hover:bg-primary-50/40 transition-colors">
-        <img id="cat-tech-edit-preview" src="${esc(t.image_url || '')}" class="absolute inset-0 w-full h-full object-cover bg-white ${t.image_url ? '' : 'hidden'}">
+        <img id="cat-tech-edit-preview" src="${esc(t.image_url || '')}" class="absolute inset-0 w-full h-full object-contain p-1 bg-white ${t.image_url ? '' : 'hidden'}">
         <span id="cat-tech-edit-placeholder" class="text-gray-300 ${t.image_url ? 'hidden' : ''}">${icon('add_photo_alternate', 24)}</span>
         <input type="file" id="cat-tech-edit-file" accept="image/*" class="hidden">
       </div>

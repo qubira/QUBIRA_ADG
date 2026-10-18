@@ -73,8 +73,8 @@ function techPreviewColumn(label, category) {
 
 function techRowPreview(t) {
   const avatar = t.image_url
-    ? `<img src="${esc(thumbUrl(t.image_url, 64))}" width="28" height="28" loading="lazy" decoding="async" class="w-7 h-7 rounded object-cover shrink-0" alt="">`
-    : `<span class="w-7 h-7 rounded bg-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
+    ? `<div class="w-8 h-8 rounded-lg bg-white border border-gray-200/80 p-1 flex items-center justify-center shrink-0 shadow-sm"><img src="${esc(thumbUrl(t.image_url, 64))}" class="max-w-full max-h-full object-contain" alt="${esc(t.name)}"></div>`
+    : `<span class="w-8 h-8 rounded-lg bg-indigo-100 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0 shadow-sm">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
   return `
   <div class="flex items-center gap-3 py-2.5">
     ${avatar}
@@ -133,11 +133,11 @@ function techCostSection(label, category) {
       <table class="w-full text-sm">
         <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
           <tr>
-            <th class="text-left px-3 py-2 font-medium" colspan="2">Herramienta</th>
-            <th class="text-left px-3 py-2 font-medium">Costo (S/)</th>
-            <th class="text-left px-3 py-2 font-medium">Margen mín (S/)</th>
-            <th class="text-left px-3 py-2 font-medium">Margen máx (S/)</th>
-            <th class="text-left px-3 py-2 font-medium">Propuesta (S/)</th>
+            <th class="text-left px-4 py-2.5 font-medium">Herramienta</th>
+            <th class="text-left px-3 py-2.5 font-medium">Costo (S/)</th>
+            <th class="text-left px-3 py-2.5 font-medium">Margen mín (S/)</th>
+            <th class="text-left px-3 py-2.5 font-medium">Margen máx (S/)</th>
+            <th class="text-left px-3 py-2.5 font-medium">Propuesta (S/)</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-50">
@@ -150,15 +150,19 @@ function techCostSection(label, category) {
 
 function techCostRow(t, category) {
   const avatar = t.image_url
-    ? `<img src="${esc(thumbUrl(t.image_url, 64))}" width="24" height="24" loading="lazy" decoding="async" class="w-6 h-6 rounded object-cover shrink-0" alt="">`
-    : `<span class="w-6 h-6 rounded bg-indigo-200 flex items-center justify-center text-[10px] font-bold text-indigo-700 shrink-0">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
+    ? `<div class="w-8 h-8 rounded-lg bg-white border border-gray-200/80 p-1 flex items-center justify-center shrink-0 shadow-sm"><img src="${esc(thumbUrl(t.image_url, 64))}" class="max-w-full max-h-full object-contain" alt="${esc(t.name)}"></div>`
+    : `<span class="w-8 h-8 rounded-lg bg-indigo-100 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0 shadow-sm">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
   const cVal = t.costo ?? '';
   const minVal = t.margen_min ?? '';
   const maxVal = t.margen_max ?? '';
   return `
   <tr data-tc-row="${esc(t.id)}" data-category="${category}">
-    <td class="px-3 py-2 w-9">${avatar}</td>
-    <td class="px-3 py-2 text-gray-800 whitespace-nowrap font-medium">${esc(t.name)}</td>
+    <td class="px-4 py-2">
+      <div class="flex items-center gap-3">
+        ${avatar}
+        <span class="text-gray-800 whitespace-nowrap font-medium">${esc(t.name)}</span>
+      </div>
+    </td>
     <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-input" data-field="costo" data-initial="${cVal}" value="${cVal}"></td>
     <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-input" data-field="margen_min" data-initial="${minVal}" value="${minVal}"></td>
     <td class="px-3 py-2"><input type="number" step="0.01" min="0" class="input text-xs py-1.5 w-24 tc-input" data-field="margen_max" data-initial="${maxVal}" value="${maxVal}"></td>

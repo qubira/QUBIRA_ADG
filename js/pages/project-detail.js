@@ -1170,7 +1170,7 @@ function techColumn(label, category) {
     <div class="flex gap-2 items-center">
       <input type="file" accept="image/*" id="tech-img-${category}" class="hidden" data-category="${category}">
       <button type="button" class="tech-img-btn w-9 h-9 shrink-0 rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50 hover:bg-gray-100" data-category="${category}" title="Imagen (opcional, solo para tecnologías nuevas)">
-        <img id="tech-img-preview-${category}" class="hidden w-full h-full object-cover" alt="">
+        <img id="tech-img-preview-${category}" class="hidden w-full h-full object-contain p-0.5" alt="">
         <span id="tech-img-icon-${category}" class="material-icons text-gray-400" style="font-size:18px">image</span>
       </button>
       <div class="relative flex-1" data-tech-wrap="${category}">
@@ -1184,24 +1184,24 @@ function techColumn(label, category) {
 
 function techAvatarHtml(name, image_url, sizeClass) {
   return image_url
-    ? `<img src="${image_url}" class="${sizeClass} rounded object-cover shrink-0" alt="">`
-    : `<span class="${sizeClass} rounded bg-indigo-200 flex items-center justify-center text-[9px] font-bold text-indigo-700 shrink-0">${esc((name || '?').charAt(0).toUpperCase())}</span>`;
+    ? `<div class="${sizeClass} rounded bg-white border border-gray-200 p-0.5 flex items-center justify-center shrink-0 shadow-xs"><img src="${image_url}" class="max-w-full max-h-full object-contain" alt=""></div>`
+    : `<span class="${sizeClass} rounded bg-indigo-100 border border-indigo-200 flex items-center justify-center text-[10px] font-bold text-indigo-700 shrink-0">${esc((name || '?').charAt(0).toUpperCase())}</span>`;
 }
 
 function techDropdownOptionHtml(c) {
   return `
   <button type="button" class="tech-option w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 text-left" data-id="${c.id}" data-name="${esc(c.name)}" data-image="${c.image_url || ''}">
-    ${techAvatarHtml(c.name, c.image_url, 'w-5 h-5')}
+    ${techAvatarHtml(c.name, c.image_url, 'w-6 h-6')}
     <span class="truncate">${esc(c.name)}</span>
   </button>`;
 }
 
 function techChip(t) {
   const avatar = t.image_url
-    ? `<img src="${t.image_url}" class="w-4 h-4 rounded object-cover" alt="">`
-    : `<span class="w-4 h-4 rounded bg-indigo-200 flex items-center justify-center text-[9px] font-bold text-indigo-700">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
+    ? `<div class="w-5 h-5 rounded bg-white border border-gray-200 p-0.5 flex items-center justify-center shrink-0 shadow-xs"><img src="${t.image_url}" class="max-w-full max-h-full object-contain" alt=""></div>`
+    : `<span class="w-5 h-5 rounded bg-indigo-100 border border-indigo-200 flex items-center justify-center text-[9px] font-bold text-indigo-700 shrink-0">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
   return `
-  <span class="inline-flex items-center gap-1.5 pl-2 pr-1.5 py-1.5 rounded-full bg-indigo-50 text-indigo-700 text-sm font-medium">
+  <span class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-medium">
     ${avatar}
     <span>${esc(t.name)}</span>
     <button type="button" class="tech-del-btn text-indigo-300 hover:text-red-500 rounded-full flex items-center justify-center" data-id="${t.id}" title="Quitar">${icon('close',14)}</button>
