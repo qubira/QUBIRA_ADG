@@ -235,7 +235,7 @@ function techCostSection(label, category) {
               <th colspan="${isTool ? 6 : 5}" class="px-4 py-2.5 text-left bg-white">
                 <div class="flex items-center justify-between">
                   <span class="font-bold text-gray-900 text-sm">${label}</span>
-                  ${isTool ? '<span class="text-xs text-gray-400 font-medium">Hasta 5 planes por herramienta con denominación personalizada</span>' : ''}
+                  ${isTool ? '<span class="text-xs text-gray-400 font-medium">Hasta 7 planes por herramienta con denominación personalizada</span>' : ''}
                 </div>
               </th>
             </tr>
@@ -280,7 +280,7 @@ function toolRowsHtml(t, plans, avatar) {
       ? `<div class="w-8 h-8 rounded-lg bg-white border border-gray-200/80 p-1 flex items-center justify-center shrink-0 shadow-sm"><img src="${esc(thumbUrl(t.image_url, 64))}" class="max-w-full max-h-full object-contain" alt="${esc(t.name)}"></div>`
       : `<span class="w-8 h-8 rounded-lg bg-indigo-100 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0 shadow-sm">${esc((t.name || '?').charAt(0).toUpperCase())}</span>`;
   }
-  const isMax = plans.length >= 5;
+  const isMax = plans.length >= 7;
 
   return plans.map((p, idx) => {
     const isFirst = idx === 0;
@@ -306,7 +306,7 @@ function toolRowsHtml(t, plans, avatar) {
       <td class="px-3 py-2 border-b border-gray-100">
         <div class="flex items-center gap-1.5">
           <input type="text" class="input text-xs py-1.5 w-32 tc-plan-input" data-field="name" placeholder="Nombre del plan..." data-initial="${esc(nameVal)}" value="${esc(nameVal)}">
-          <button type="button" class="tc-add-plan-btn w-6 h-6 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 flex items-center justify-center font-bold text-sm shrink-0 border border-emerald-200 transition-all ${isMax ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}" title="${isMax ? 'Máximo 5 planes alcanzado' : 'Añadir sub-plan'}" data-tool-id="${esc(t.id)}">+</button>
+          <button type="button" class="tc-add-plan-btn w-6 h-6 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 flex items-center justify-center font-bold text-sm shrink-0 border border-emerald-200 transition-all ${isMax ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}" title="${isMax ? 'Máximo 7 planes alcanzado' : 'Añadir sub-plan'}" data-tool-id="${esc(t.id)}">+</button>
           ${plans.length > 1 ? `
           <button type="button" class="tc-del-plan-btn w-6 h-6 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-100 active:scale-95 flex items-center justify-center font-bold text-xs shrink-0 border border-rose-200 transition-all" title="Eliminar este plan" data-tool-id="${esc(t.id)}" data-plan-index="${idx}">✕</button>` : ''}
         </div>
@@ -502,8 +502,8 @@ function wireTechCostModal() {
       if (!tool) return;
       const group = modalBody.querySelector(`[data-tc-group="${toolId}"]`);
       tool.plans = getPlansFromGroupDom(group, tool);
-      if (tool.plans.length >= 5) {
-        toast('Máximo 5 planes por herramienta', 'warning');
+      if (tool.plans.length >= 7) {
+        toast('Máximo 7 planes por herramienta', 'warning');
         return;
       }
       const lastMoneda = tool.plans[tool.plans.length - 1]?.moneda || tool.moneda || 'PEN';
