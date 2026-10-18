@@ -1,6 +1,6 @@
 import { api }      from '../api.js';
 import { toast, showModal, closeModal, spinner, icon } from '../utils.js';
-import { initTechStackBuilder } from '../components/tech-stack-builder.js?v=10';
+import { initTechStackBuilder } from '../components/tech-stack-builder.js?v=11';
 
 let _techCatalog = { language: [], tool: [] };
 let _currentTab = 'stack'; // 'stack' | 'catalog'
