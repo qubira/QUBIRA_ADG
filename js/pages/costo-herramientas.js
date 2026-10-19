@@ -171,7 +171,20 @@ function fmtMoney(v, moneda = 'PEN') {
   return `${sym} ${Number(v).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export function openTechCostModal() {
+export function openTechCostModal(onCloseCallback) {
+  if (!_techCatalog.language.length && !_techCatalog.tool.length) {
+    Promise.all([
+      api.get('/technology-catalog', { category: 'language' }),
+      api.get('/technology-catalog', { category: 'tool' }),
+    ]).then(([langs, tools]) => {
+      _techCatalog = { language: langs, tool: tools };
+      openTechCostModal(onCloseCallback);
+    }).catch(err => {
+      toast('Error al cargar catálogo de costos: ' + (err.message || ''), 'error');
+    });
+    return;
+  }
+
   const langCount = (_techCatalog.language || []).length;
   const toolCount = (_techCatalog.tool || []).length;
   const totalCount = langCount + toolCount;
@@ -227,7 +240,11 @@ export function openTechCostModal() {
 
   document.getElementById('tech-cost-close').addEventListener('click', () => {
     closeModal();
-    renderPage();
+    if (typeof onCloseCallback === 'function') {
+      onCloseCallback();
+    } else {
+      renderPage();
+    }
   });
 
   wireTechCostModal();
