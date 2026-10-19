@@ -1,10 +1,24 @@
 import { api } from '../api.js';
 import { toast, showModal, closeModal, spinner, icon } from '../utils.js';
 import { openTechCostModal } from './costo-herramientas.js';
+import { getUser } from '../state.js';
 
-// PERMISOS DE COSTOS: En ADG y OPP se pueden ver y editar. En TI/OTI está prohibido.
-const CAN_VIEW_COSTS = true;
-const CAN_EDIT_COSTS = true;
+// PERMISOS DE COSTOS:
+// OTI (TI) tiene estrictamente PROHIBIDO ver o editar costos/precios.
+// Solo ADG, OPP y ODN tienen acceso a información económica.
+function canViewCosts() {
+  const u = getUser();
+  const area = String(u?.area || u?.rol || '').toUpperCase();
+  if (area === 'TI' || area === 'OTI') return false;
+  return true;
+}
+
+function canEditCosts() {
+  const u = getUser();
+  const area = String(u?.area || u?.rol || '').toUpperCase();
+  if (area === 'TI' || area === 'OTI') return false;
+  return area === 'ADG' || area === 'OPP' || (u?.nivel_acceso || 0) >= 100;
+}
 
 let _items = []; // Fichas técnicas registradas (ti.tech_plan_info)
 let _catalog = { language: [], tool: [] }; // Catálogo completo (ti.technology_catalog)
@@ -526,14 +540,11 @@ function renderPageSkeleton() {
         </div>
 
         <div class="flex items-center gap-2.5">
-          ${CAN_VIEW_COSTS ? `
+          ${canViewCosts() ? `
             <button type="button" id="btn-open-image-2-top" class="btn-secondary flex items-center gap-1.5 shadow-sm text-xs py-2 px-3">
               💰 Matriz de Costos OPP
             </button>
           ` : ''}
-          <button type="button" id="btn-nuevo-plan" class="btn-primary flex items-center gap-1.5 shadow-sm text-xs py-2 px-3.5">
-            ${icon('add', 18)} Nuevo Plan Técnico
-          </button>
         </div>
       </div>
 
@@ -633,11 +644,7 @@ function renderPageSkeleton() {
     });
   });
 
-  document.getElementById('btn-nuevo-plan')?.addEventListener('click', () => {
-    openPlanModal(null, _selectedTechName || '');
-  });
-
-  if (CAN_VIEW_COSTS) {
+  if (canViewCosts()) {
     document.getElementById('btn-open-image-2-top')?.addEventListener('click', () => {
       openTechCostModal(() => load());
     });
@@ -776,14 +783,11 @@ function renderTechDetail(tech, plans, activePlan) {
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
-          ${CAN_VIEW_COSTS ? `
+          ${canViewCosts() ? `
             <button type="button" id="btn-open-image-2-detail" class="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5 shadow-2xs">
               💰 Matriz de Costos OPP
             </button>
           ` : ''}
-          <button type="button" id="btn-add-plan-for-tech" class="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5 shadow-2xs" data-tech-id="${esc(tech.id || '')}" data-tech-name="${esc(tech.name)}" data-tech-category="${esc(tech.category)}">
-            ${icon('add', 14)} Agregar Plan
-          </button>
         </div>
       </div>
 
@@ -795,10 +799,7 @@ function renderTechDetail(tech, plans, activePlan) {
 
         ${plans.length === 0 ? `
           <div class="bg-gray-50 rounded-lg p-6 text-center border border-dashed border-gray-200">
-            <p class="text-xs text-gray-500 mb-2">Esta tecnología aún no tiene planes técnicos registrados en el sistema.</p>
-            <button type="button" id="btn-create-first-plan" class="btn-primary text-xs py-1 px-3" data-tech-id="${esc(tech.id || '')}" data-tech-name="${esc(tech.name)}" data-tech-category="${esc(tech.category)}">
-              + Crear Primer Plan Técnico
-            </button>
+            <p class="text-xs text-gray-500">Esta tecnología aún no tiene planes técnicos registrados en el sistema.</p>
           </div>
         ` : `
           <div class="flex items-center gap-2 overflow-x-auto pb-1" id="plan-tabs-bar">
@@ -811,7 +812,7 @@ function renderTechDetail(tech, plans, activePlan) {
                     : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
                 }" data-plan-id="${esc(p.id)}" data-plan-name="${esc(p.plan_nombre)}">
                   <span>${esc(p.plan_nombre)}</span>
-                  ${CAN_VIEW_COSTS && p.precio ? `<span class="text-[10px] opacity-90 font-normal">(${esc(p.precio)})</span>` : ''}
+                  ${canViewCosts() && p.precio ? `<span class="text-[10px] opacity-90 font-normal">(${esc(p.precio)})</span>` : ''}
                 </button>
               `;
             }).join('')}
@@ -838,7 +839,7 @@ function renderActivePlanCard(plan, tech) {
         <div class="flex items-center gap-2 flex-wrap">
           <span class="text-xs font-bold text-gray-500 uppercase">Ficha del Plan:</span>
           <span class="text-sm font-bold text-gray-900">${esc(plan.plan_nombre)}</span>
-          ${CAN_VIEW_COSTS && plan.precio ? `
+          ${canViewCosts() && plan.precio ? `
             <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs px-2.5 py-0.5 rounded-full">
               ${esc(plan.precio)}
             </span>
@@ -850,7 +851,7 @@ function renderActivePlanCard(plan, tech) {
             ${icon('content_copy', 14)} Copiar Ficha
           </button>
           <button type="button" class="btn-primary text-xs px-2.5 py-1.5 flex items-center gap-1.5 btn-edit-plan" data-plan-id="${esc(plan.id)}">
-            ${icon('edit', 14)} Editar Plan ${CAN_EDIT_COSTS ? '& Costos' : ''}
+            ${icon('edit', 14)} Editar Plan ${canEditCosts() ? '& Costos' : ''}
           </button>
           <button type="button" class="btn-danger text-xs px-2 py-1.5 text-rose-600 hover:bg-rose-50 rounded-lg flex items-center gap-1 btn-delete-plan" data-plan-id="${esc(plan.id)}" data-plan-name="${esc(plan.plan_nombre)}" data-tech-name="${esc(tech.name)}">
             ${icon('delete', 14)}
@@ -859,7 +860,7 @@ function renderActivePlanCard(plan, tech) {
       </div>
 
       <!-- Barra Informativa de Costos (Solo visible para ADG, OPP, ODN) -->
-      ${CAN_VIEW_COSTS ? `
+      ${canViewCosts() ? `
         <div class="bg-indigo-50/50 border-b border-indigo-100 px-5 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div class="flex items-center gap-4 flex-wrap">
             <div class="flex items-center gap-1.5">
@@ -909,8 +910,8 @@ function renderActivePlanCard(plan, tech) {
       <div class="p-6 space-y-6">
 
         <!-- 1. Precios y Cuotas -->
-        <div class="grid grid-cols-1 md:grid-cols-${CAN_VIEW_COSTS ? '3' : '2'} gap-4 bg-gray-50/60 p-4 rounded-xl border border-gray-100">
-          ${CAN_VIEW_COSTS ? `
+        <div class="grid grid-cols-1 md:grid-cols-${canViewCosts() ? '3' : '2'} gap-4 bg-gray-50/60 p-4 rounded-xl border border-gray-100">
+          ${canViewCosts() ? `
             <div>
               <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Precio Referencial</span>
               <p class="text-sm font-bold text-gray-900">${esc(plan.precio || 'Sin especificar')}</p>
@@ -1109,17 +1110,7 @@ function wireDetailEvents(tech, activePlan) {
     });
   }
 
-  // Botón Agregar Plan para la tecnología actual
-  document.getElementById('btn-add-plan-for-tech')?.addEventListener('click', (e) => {
-    const btn = e.currentTarget;
-    openPlanModal(null, btn.dataset.techName, btn.dataset.techCategory, btn.dataset.techId);
-  });
-  document.getElementById('btn-create-first-plan')?.addEventListener('click', (e) => {
-    const btn = e.currentTarget;
-    openPlanModal(null, btn.dataset.techName, btn.dataset.techCategory, btn.dataset.techId);
-  });
-
-  if (CAN_VIEW_COSTS) {
+  if (canViewCosts()) {
     const openOppModal = () => openTechCostModal(() => load());
     document.getElementById('btn-open-image-2-detail')?.addEventListener('click', openOppModal);
   }
@@ -1151,7 +1142,7 @@ function wireCardActions(tech, plan) {
     });
   });
 
-  if (CAN_VIEW_COSTS) {
+  if (canViewCosts()) {
     cardMount.querySelectorAll('.btn-open-image-2-inline').forEach(btn => {
       btn.addEventListener('click', () => openTechCostModal(() => load()));
     });
@@ -1163,7 +1154,7 @@ function copyPlanToClipboard(p) {
   const text = `
 📋 FICHA TÉCNICA — ${p.tech_name || p.producto_nombre || ''} [${p.plan_nombre}]
 --------------------------------------------------
-${CAN_VIEW_COSTS ? `💰 Precio: ${p.precio || 'N/A'}\n` : ''}📊 Cuota Mensual: ${p.cuota_mensual || 'N/A'}
+${canViewCosts() ? `💰 Precio: ${p.precio || 'N/A'}\n` : ''}📊 Cuota Mensual: ${p.cuota_mensual || 'N/A'}
 📝 Descripción: ${p.descripcion || 'N/A'}
 ✨ Agregados: ${p.agregados || 'N/A'}
 ⚙️ Límites Técnicos: ${p.limites_tecnicos || 'N/A'}
@@ -1198,7 +1189,7 @@ async function deletePlan(id, planNombre, techName) {
   }
   try {
     const matchedTech = _allTechs.find(t => t.name.toLowerCase() === techName.toLowerCase());
-    if (CAN_EDIT_COSTS && matchedTech && Array.isArray(matchedTech.plans)) {
+    if (canEditCosts() && matchedTech && Array.isArray(matchedTech.plans)) {
       matchedTech.plans = matchedTech.plans.filter(p => (p.name || '').trim().toLowerCase() !== planNombre.trim().toLowerCase());
       await api.put(`/technology-catalog/${matchedTech.id}/cost`, {
         costo: matchedTech.plans[0]?.costo ?? null,
@@ -1252,7 +1243,7 @@ function openPlanModal(plan = null, defaultTechName = '', defaultCategory = 'too
       <!-- Selector de Pestañas del Modal -->
       <div class="flex items-center gap-1 border-b border-gray-200 pb-2 overflow-x-auto text-xs font-bold">
         <button type="button" class="modal-tab-btn px-3 py-1.5 rounded-lg border border-transparent transition-all active text-primary-600 bg-primary-50" data-tab="basic">
-          1. General ${CAN_EDIT_COSTS ? '& Costos' : ''}
+          1. General ${canEditCosts() ? '& Costos' : ''}
         </button>
         <button type="button" class="modal-tab-btn px-3 py-1.5 rounded-lg border border-transparent text-gray-500 hover:text-gray-800 transition-all" data-tab="limits">
           2. Límites & Cuotas
@@ -1293,7 +1284,7 @@ function openPlanModal(plan = null, defaultTechName = '', defaultCategory = 'too
         </div>
 
         <!-- Parámetros Oficiales de Costo (Solo si tiene permiso de edición: ADG, OPP) -->
-        ${CAN_EDIT_COSTS ? `
+        ${canEditCosts() ? `
           <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-200 space-y-3">
             <div class="flex items-center justify-between">
               <span class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
@@ -1559,7 +1550,7 @@ function openPlanModal(plan = null, defaultTechName = '', defaultCategory = 'too
     let calculatedPrice = plan?.precio || '';
     let planDataForCatalog = null;
 
-    if (CAN_EDIT_COSTS) {
+    if (canEditCosts()) {
       const moneda = document.getElementById('mp-moneda').value;
       const costoVal = document.getElementById('mp-costo').value;
       const minVal = document.getElementById('mp-margen-min').value;
@@ -1587,7 +1578,7 @@ function openPlanModal(plan = null, defaultTechName = '', defaultCategory = 'too
 
     try {
       // 1. Sincronizar con la Matriz de Costos OPP solo si tiene permisos de edición (ADG / OPP)
-      if (CAN_EDIT_COSTS && matchedTech && matchedTech.id && planDataForCatalog) {
+      if (canEditCosts() && matchedTech && matchedTech.id && planDataForCatalog) {
         let currentPlans = Array.isArray(matchedTech.plans) ? [...matchedTech.plans] : [];
         if (isEdit && plan?.plan_nombre) {
           const pIdx = currentPlans.findIndex(p => (p.name || '').trim().toLowerCase() === plan.plan_nombre.trim().toLowerCase());
