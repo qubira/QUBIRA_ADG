@@ -60,7 +60,12 @@ function renderPage() {
         : `<div class="divide-y divide-gray-50">${_docTypes.map(docTypeRow).join('')}</div>`}
     </div>
 
-    <h2 class="text-lg font-bold text-gray-900 mb-1">Catálogo de Tecnologías</h2>
+    <div class="flex items-center justify-between mb-1">
+      <h2 class="text-lg font-bold text-gray-900">Catálogo de Tecnologías</h2>
+      <a href="#/info-tecnico" class="text-xs text-primary-600 font-bold hover:underline flex items-center gap-1 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+        ${icon('memory', 15)} Info Técnico &rarr;
+      </a>
+    </div>
     <p class="text-xs text-gray-500 mb-3">Lista reutilizable de lenguajes y herramientas que aparece al agregar tecnologías a cualquier proyecto — editá el nombre o la imagen desde acá, en vez de proyecto por proyecto.</p>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
       ${techCatalogColumn('Lenguajes', 'language')}
@@ -120,6 +125,7 @@ function catalogTechRow(t, category) {
   <div class="flex items-center gap-3 py-2.5">
     ${avatar}
     <p class="text-sm text-gray-800 flex-1 truncate">${esc(t.name)}</p>
+    <a href="#/info-tecnico?tech=${encodeURIComponent(t.name)}" class="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors" title="Ver Info Técnico (Límites y Planes)">${icon('memory',16)}</a>
     <button class="cat-tech-edit p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600" data-id="${t.id}" data-category="${category}" title="Editar">${icon('edit',16)}</button>
     <button class="cat-tech-del p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600" data-id="${t.id}" data-category="${category}" title="Eliminar">${icon('delete',16)}</button>
   </div>`;
