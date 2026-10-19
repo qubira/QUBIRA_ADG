@@ -11,6 +11,7 @@ import { render as renderCalendario }  from './pages/calendario.js';
 import { render as renderAuditoria }   from './pages/auditoria.js';
 import { render as renderVisitas }     from './pages/visitas.js';
 import { render as renderCostoHerramientas } from './pages/costo-herramientas.js';
+import { render as renderInfoTecnico }       from './pages/info-tecnico.js';
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 const exactRoutes = {};
@@ -56,6 +57,7 @@ const NAV = [
   { path: '/contracts',  iconName: 'description',   label: 'Contratos & Proformas' },
   { path: '/config',     iconName: 'settings',      label: 'Configuración' },
   { path: '/costo-herramientas', iconName: 'payments', label: 'Costo por OPP HERRAMIENTAS' },
+  { path: '/info-tecnico', iconName: 'memory',   label: 'Info Técnico' },
   { path: '/visitas',    iconName: 'bar_chart',     label: 'Visitas',    visible: canViewAudit },
   { path: '/auditoria',  iconName: 'fact_check',    label: 'Auditoría',  visible: canViewAudit },
 ];
@@ -179,6 +181,7 @@ addRoute('/visitas',         () => renderVisitas());
 addRoute('/contracts',       () => renderContracts());
 addRoute('/config',          () => renderConfig());
 addRoute('/costo-herramientas', () => renderCostoHerramientas());
+addRoute('/info-tecnico',    () => renderInfoTecnico());
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 window.addEventListener('hashchange', handleRoute);
