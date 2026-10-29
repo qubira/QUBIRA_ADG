@@ -1084,6 +1084,7 @@ function generarHtmlDocumentoWord(acta) {
   const controles = Array.isArray(d.controles) ? d.controles : [];
   const herramientas = Array.isArray(d.herramientas) ? d.herramientas : [];
   const plan = Array.isArray(d.plan_remediacion) ? d.plan_remediacion : [];
+  const conformes = Array.isArray(d.conformes) ? d.conformes : [];
 
   return `
     <!-- ENCABEZADO SUPERIOR DEL DOCUMENTO -->
@@ -1149,13 +1150,13 @@ function generarHtmlDocumentoWord(acta) {
             <p style="margin:1pt;line-height:1.15;"><span style="font-weight:bold;color:#1F3A5F;font-size:9.5pt;font-family:'Calibri', Arial, sans-serif;">Proyecto</span></p>
           </td>
           <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;vertical-align:middle;">
-            <p style="margin:1pt;line-height:1.15;"><span style="font-weight:bold;color:#1F2937;font-size:9.5pt;font-family:'Calibri', Arial, sans-serif;">${esc(acta.project_name || 'Proyecto QUBIRA')}</span></p>
+            <p style="margin:1pt;line-height:1.15;"><span style="font-weight:bold;color:#1F2937;font-size:9.5pt;font-family:'Calibri', Arial, sans-serif;">${esc(d.proyecto_nombre || acta.project_name || 'Proyecto QUBIRA')}</span></p>
           </td>
           <td style="border:0.5pt solid #C9D3DF;background:#EAF1F8;padding:3.5pt 5.5pt;vertical-align:middle;">
             <p style="margin:1pt;line-height:1.15;"><span style="font-weight:bold;color:#1F3A5F;font-size:9.5pt;font-family:'Calibri', Arial, sans-serif;">Cliente</span></p>
           </td>
           <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;vertical-align:middle;">
-            <p style="margin:1pt;line-height:1.15;"><span style="color:#1F2937;font-size:9.5pt;font-family:'Calibri', Arial, sans-serif;">${esc(acta.project_client || 'QUBIRA interno')}</span></p>
+            <p style="margin:1pt;line-height:1.15;"><span style="color:#1F2937;font-size:9.5pt;font-family:'Calibri', Arial, sans-serif;">${esc(d.cliente || acta.project_client || 'QUBIRA interno')}</span></p>
           </td>
         </tr>
       </tbody>
@@ -1430,7 +1431,7 @@ function generarHtmlDocumentoWord(acta) {
         ` : medios.map(h => `
           <tr>
             <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-weight:bold;color:#1F3A5F;font-size:9pt;">${esc(h.id)}</td>
-            <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:9pt;color:#1F2937;">${esc(h.titulo)}</td>
+            <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:9pt;color:#1F2937;">${esc(h.detalle || h.titulo)}</td>
             <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:8.5pt;color:#4B5563;">${esc(h.ubicacion || '—')}</td>
             <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:8.5pt;color:#1F2937;">${esc(h.correccion || '—')}</td>
           </tr>
@@ -1442,35 +1443,38 @@ function generarHtmlDocumentoWord(acta) {
     <p style="margin-top:12pt;margin-bottom:4pt;">
       <span style="font-weight:bold;color:#1F3A5F;font-size:11pt;font-family:'Calibri', Arial, sans-serif;">5.4 &nbsp;Bajos y controles conformes</span>
     </p>
+    ${bajos.length ? `
+    <p style="margin:2pt 0 3pt;"><span style="font-weight:bold;color:#1F2937;font-size:9.5pt;font-family:'Calibri', Arial, sans-serif;">Bajos:</span></p>
+    <table style="border-collapse:collapse;width:100%;table-layout:fixed;margin:0 0 8pt 0;">
+      <colgroup><col style="width:12%"><col style="width:38%"><col style="width:25%"><col style="width:25%"></colgroup>
+      <thead><tr>
+        <th style="border:0.5pt solid #C9D3DF;background:#1F3A5F;padding:3.5pt 5.5pt;text-align:left;"><span style="font-weight:bold;color:#FFFFFF;font-size:9pt;">N.º</span></th>
+        <th style="border:0.5pt solid #C9D3DF;background:#1F3A5F;padding:3.5pt 5.5pt;text-align:left;"><span style="font-weight:bold;color:#FFFFFF;font-size:9pt;">Hallazgo</span></th>
+        <th style="border:0.5pt solid #C9D3DF;background:#1F3A5F;padding:3.5pt 5.5pt;text-align:left;"><span style="font-weight:bold;color:#FFFFFF;font-size:9pt;">Ubicación</span></th>
+        <th style="border:0.5pt solid #C9D3DF;background:#1F3A5F;padding:3.5pt 5.5pt;text-align:left;"><span style="font-weight:bold;color:#FFFFFF;font-size:9pt;">Corrección</span></th>
+      </tr></thead>
+      <tbody>${bajos.map(h => `<tr>
+        <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-weight:bold;color:#1F3A5F;font-size:9pt;">${esc(h.id)}</td>
+        <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:9pt;color:#1F2937;">${esc(h.detalle || h.titulo)}</td>
+        <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:8.5pt;color:#4B5563;">${esc(h.ubicacion || '—')}</td>
+        <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:8.5pt;color:#1F2937;">${esc(h.correccion || '—')}</td>
+      </tr>`).join('')}</tbody>
+    </table>` : ''}
+    ${conformes.length || !bajos.length ? `
+    ${bajos.length ? '<p style="margin:2pt 0 3pt;"><span style="font-weight:bold;color:#1F2937;font-size:9.5pt;font-family:\'Calibri\', Arial, sans-serif;">Controles conformes:</span></p>' : ''}
     <table style="border-collapse:collapse;width:100%;table-layout:fixed;margin:0 0 12pt 0;">
-      <colgroup>
-        <col style="width:25%">
-        <col style="width:25%">
-        <col style="width:50%">
-      </colgroup>
-      <thead>
-        <tr>
-          <th style="border:0.5pt solid #C9D3DF;background:#1F3A5F;padding:3.5pt 5.5pt;text-align:left;"><span style="font-weight:bold;color:#FFFFFF;font-size:9pt;">Área / Dominio</span></th>
-          <th style="border:0.5pt solid #C9D3DF;background:#1F3A5F;padding:3.5pt 5.5pt;text-align:left;"><span style="font-weight:bold;color:#FFFFFF;font-size:9pt;">Resultado</span></th>
-          <th style="border:0.5pt solid #C9D3DF;background:#1F3A5F;padding:3.5pt 5.5pt;text-align:left;"><span style="font-weight:bold;color:#FFFFFF;font-size:9pt;">Observación</span></th>
-        </tr>
-      </thead>
-      <tbody>
-        ${bajos.length === 0 ? `
-          <tr>
-            <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:9pt;font-weight:bold;color:#1F3A5F;">Arquitectura y Código</td>
-            <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:9pt;color:#27AE60;font-weight:bold;">Conforme</td>
-            <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:8.5pt;color:#4B5563;">Cumple con la estructura base de seguridad y calidad del proyecto.</td>
-          </tr>
-        ` : bajos.map(h => `
-          <tr>
-            <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:9pt;font-weight:bold;color:#1F3A5F;">${esc(h.ubicacion || 'General')}</td>
-            <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:9pt;color:#27AE60;font-weight:bold;">Riesgo bajo</td>
-            <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:8.5pt;color:#4B5563;">${esc(h.titulo)} — ${esc(h.correccion || 'Buena práctica')}</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
+      <colgroup><col style="width:25%"><col style="width:20%"><col style="width:55%"></colgroup>
+      <thead><tr>
+        <th style="border:0.5pt solid #C9D3DF;background:#1F3A5F;padding:3.5pt 5.5pt;text-align:left;"><span style="font-weight:bold;color:#FFFFFF;font-size:9pt;">Área / Dominio</span></th>
+        <th style="border:0.5pt solid #C9D3DF;background:#1F3A5F;padding:3.5pt 5.5pt;text-align:left;"><span style="font-weight:bold;color:#FFFFFF;font-size:9pt;">Resultado</span></th>
+        <th style="border:0.5pt solid #C9D3DF;background:#1F3A5F;padding:3.5pt 5.5pt;text-align:left;"><span style="font-weight:bold;color:#FFFFFF;font-size:9pt;">Observación</span></th>
+      </tr></thead>
+      <tbody>${(conformes.length ? conformes : [{ area: 'Arquitectura y Código', resultado: 'Conforme', observacion: 'Cumple con la estructura base de seguridad y calidad del proyecto.' }]).map(c => `<tr>
+        <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:9pt;font-weight:bold;color:#1F3A5F;">${esc(c.area)}</td>
+        <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:9pt;font-weight:bold;color:${/no conforme/i.test(c.resultado) ? '#C0392B' : /riesgo/i.test(c.resultado) ? '#E67E22' : '#27AE60'};">${esc(c.resultado || 'Conforme')}</td>
+        <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:8.5pt;color:#4B5563;">${esc(c.observacion || '')}</td>
+      </tr>`).join('')}</tbody>
+    </table>` : ''}
 
     <!-- SECCIÓN 6: CONTROLES REVISADOS (CHECKLIST AGRUPADO) -->
     <p style="margin-top:14pt;margin-bottom:6pt;">
@@ -1507,7 +1511,7 @@ function generarHtmlDocumentoWord(acta) {
                   </td>
                 ` : ''}
                 <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:8.5pt;color:#1F2937;vertical-align:middle;">
-                  ${esc(it.control)}
+                  ${it.codigo ? `<span style="font-weight:bold;color:#2E6DA4;">${esc(it.codigo)}</span> &nbsp;` : ''}${esc(it.control)}
                 </td>
                 <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;text-align:center;font-weight:bold;color:${cumpleColor};font-size:9pt;vertical-align:middle;">
                   ${cumpleText}
@@ -1582,7 +1586,7 @@ function generarHtmlDocumentoWord(acta) {
           <tr>
             <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:8.5pt;color:#1F2937;">${esc(p.accion)}</td>
             <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;text-align:center;font-weight:bold;font-size:8.5pt;color:#1F3A5F;">${esc(p.ref || '—')}</td>
-            <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;text-align:center;font-size:8.5pt;font-weight:bold;color:${p.prioridad === 'Crítico' ? '#C0392B' : p.prioridad === 'Alto' ? '#E67E22' : '#1F3A5F'};">${esc(p.prioridad || 'Medio')}</td>
+            <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;text-align:center;font-size:8.5pt;font-weight:bold;color:${p.prioridad === 'Crítico' ? '#C0392B' : p.prioridad === 'Alto' ? '#E67E22' : p.prioridad === 'Medio' ? '#B7950B' : p.prioridad === 'Bajo' ? '#27AE60' : '#1F3A5F'};">${esc(p.prioridad || 'Medio')}</td>
             <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;font-size:8.5pt;color:#1F2937;">${esc(p.responsable || '—')}</td>
             <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;text-align:center;font-size:8.5pt;color:#1F2937;">${esc(p.fecha || '—')}</td>
             <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;text-align:center;font-size:11pt;color:${p.hecho ? '#27AE60' : '#9CA3AF'}; font-family:Arial;">
@@ -1608,7 +1612,7 @@ function generarHtmlDocumentoWord(acta) {
             <div style="border-top:1pt solid #1F3A5F;padding-top:6pt;">
               <p style="margin:0;font-weight:bold;font-size:9.5pt;color:#1F3A5F;">${esc(d.auditor || acta.auditor || 'Auditor Responsable')}</p>
               <p style="margin:2pt 0;font-size:8.5pt;color:#4B5563;">${esc(d.auditor_cargo || 'Auditor responsable')}</p>
-              <p style="margin:0;font-size:8pt;color:#6B7280;">DNI: ${esc(d.auditor_dni || '_______________')} &nbsp;&nbsp; Fecha: ${esc(acta.fecha_emision || hoyISO())}</p>
+              <p style="margin:0;font-size:8pt;color:#6B7280;">DNI: ${esc(d.auditor_dni || '_______________')} &nbsp;&nbsp; Fecha: ${esc(d.auditor_fecha || acta.fecha_emision || hoyISO())}</p>
             </div>
           </td>
           <td style="width:4%;"></td>
@@ -1616,7 +1620,7 @@ function generarHtmlDocumentoWord(acta) {
             <div style="border-top:1pt solid #1F3A5F;padding-top:6pt;">
               <p style="margin:0;font-weight:bold;font-size:9.5pt;color:#1F3A5F;">${esc(d.responsable_proyecto || 'Responsable del proyecto')}</p>
               <p style="margin:2pt 0;font-size:8.5pt;color:#4B5563;">${esc(d.responsable_cargo || 'Líder de Proyecto / Cliente')}</p>
-              <p style="margin:0;font-size:8pt;color:#6B7280;">DNI: ${esc(d.responsable_dni || '_______________')} &nbsp;&nbsp; Fecha: ${esc(acta.fecha_emision || hoyISO())}</p>
+              <p style="margin:0;font-size:8pt;color:#6B7280;">DNI: ${esc(d.responsable_dni || '_______________')} &nbsp;&nbsp; Fecha: ${esc(d.responsable_fecha || acta.fecha_emision || hoyISO())}</p>
             </div>
           </td>
         </tr>
@@ -1919,6 +1923,27 @@ async function editarActa(id) {
           </div>
         </div>
 
+        <!-- SECCIÓN: CONTROLES CONFORMES (5.4) -->
+        <div class="card p-5 bg-white border border-gray-200 shadow-sm rounded-xl">
+          <div class="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
+            <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">${icon('verified', 20)} Controles conformes (sección 5.4)</h3>
+            <button type="button" id="btn-agregar-conforme" class="btn-secondary text-xs inline-flex items-center gap-1.5 py-1.5 px-3">${icon('add', 16)} Agregar</button>
+          </div>
+          <div id="lista-conformes-editor" class="space-y-2"></div>
+        </div>
+
+        <!-- SECCIÓN: PLAN DE REMEDIACIÓN (8) -->
+        <div class="card p-5 bg-white border border-gray-200 shadow-sm rounded-xl">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-2 mb-3">
+            <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">${icon('task_alt', 20)} Plan de remediación (sección 8)</h3>
+            <div class="flex items-center gap-2">
+              <label class="text-xs text-gray-600 inline-flex items-center gap-1.5"><input type="checkbox" id="edit-plan-auto" ${d.plan_manual ? '' : 'checked'}> Generar desde los hallazgos al guardar</label>
+              <button type="button" id="btn-agregar-accion" class="btn-secondary text-xs inline-flex items-center gap-1.5 py-1.5 px-3">${icon('add', 16)} Agregar acción</button>
+            </div>
+          </div>
+          <div id="lista-plan-editor" class="space-y-2"></div>
+        </div>
+
         <!-- SECCIÓN 6: CONFORMIDAD Y FIRMAS -->
         <div class="card p-5 bg-white border border-gray-200 shadow-sm rounded-xl">
           <h3 class="text-base font-bold text-gray-900 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
@@ -1985,6 +2010,56 @@ async function editarActa(id) {
     let hallazgosLocales = JSON.parse(JSON.stringify(d.hallazgos || []));
     let controlesLocales = JSON.parse(JSON.stringify(d.controles || []));
     let herramientasLocales = JSON.parse(JSON.stringify(d.herramientas || []));
+    let conformesLocales = JSON.parse(JSON.stringify(Array.isArray(d.conformes) ? d.conformes : []));
+    let planLocal = JSON.parse(JSON.stringify(Array.isArray(d.plan_remediacion) ? d.plan_remediacion : []));
+
+    function renderConformesInputs() {
+      const cont = document.getElementById('lista-conformes-editor');
+      if (!cont) return;
+      cont.innerHTML = conformesLocales.length ? conformesLocales.map((c, idx) => `
+        <div class="flex flex-wrap items-center gap-2 p-2 rounded-lg border border-gray-200 bg-gray-50 conf-row" data-idx="${idx}">
+          <input type="text" class="input text-xs font-semibold py-1" style="flex:1;min-width:140px" value="${esc(c.area || '')}" placeholder="Área / dominio" data-f="area">
+          <select class="input text-xs py-1 w-32" data-f="resultado">
+            ${['Conforme', 'Riesgo bajo', 'No conforme'].map(r => `<option ${(c.resultado || 'Conforme') === r ? 'selected' : ''}>${r}</option>`).join('')}
+          </select>
+          <input type="text" class="input text-xs py-1" style="flex:3;min-width:200px" value="${esc(c.observacion || '')}" placeholder="Qué se verificó" data-f="observacion">
+          <button type="button" class="btn-eliminar-conf p-1 text-gray-400 hover:text-red-600" data-idx="${idx}">${icon('delete', 16)}</button>
+        </div>`).join('')
+        : '<p class="text-xs text-gray-400 p-3 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">Sin controles conformes registrados.</p>';
+      cont.querySelectorAll('.conf-row').forEach(row => {
+        const i = Number(row.dataset.idx);
+        row.querySelectorAll('input, select').forEach(inp => inp.addEventListener('input', () => { conformesLocales[i][inp.dataset.f] = inp.value; }));
+      });
+      cont.querySelectorAll('.btn-eliminar-conf').forEach(b => b.addEventListener('click', () => { conformesLocales.splice(Number(b.dataset.idx), 1); renderConformesInputs(); }));
+    }
+
+    function renderPlanInputs() {
+      const cont = document.getElementById('lista-plan-editor');
+      if (!cont) return;
+      const auto = document.getElementById('edit-plan-auto')?.checked;
+      if (auto) {
+        cont.innerHTML = '<p class="text-xs text-gray-500 p-3 bg-blue-50 border border-blue-100 rounded-lg">El plan se arma solo con una acción por hallazgo al guardar. Desmarca la casilla para escribir tus propias acciones (por ejemplo, agrupar varios hallazgos en una sola acción).</p>';
+        return;
+      }
+      cont.innerHTML = planLocal.length ? planLocal.map((a, idx) => `
+        <div class="grid grid-cols-12 gap-2 p-2 rounded-lg border border-gray-200 bg-gray-50 plan-row items-center" data-idx="${idx}">
+          <input type="text" class="input text-xs py-1 col-span-12 sm:col-span-4" value="${esc(a.accion || '')}" placeholder="Acción correctiva" data-f="accion">
+          <input type="text" class="input text-xs py-1 col-span-3 sm:col-span-1 font-mono" value="${esc(a.ref || '')}" placeholder="Ref." data-f="ref">
+          <select class="input text-xs py-1 col-span-3 sm:col-span-2" data-f="prioridad">${['Crítico', 'Alto', 'Medio', 'Bajo'].map(pr => `<option ${a.prioridad === pr ? 'selected' : ''}>${pr}</option>`).join('')}</select>
+          <input type="text" class="input text-xs py-1 col-span-6 sm:col-span-2" value="${esc(a.responsable || '')}" placeholder="Responsable" data-f="responsable">
+          <input type="text" class="input text-xs py-1 col-span-5 sm:col-span-2" value="${esc(a.fecha || '')}" placeholder="AAAA-MM-DD / Backlog" data-f="fecha" list="cal-plazos">
+          <label class="col-span-5 sm:col-span-1 text-xs inline-flex items-center gap-1"><input type="checkbox" data-f="hecho" ${a.hecho ? 'checked' : ''}> Hecho</label>
+          <button type="button" class="btn-eliminar-acc col-span-2 sm:col-span-12 sm:justify-self-end p-1 text-gray-400 hover:text-red-600" data-idx="${idx}">${icon('delete', 16)}</button>
+        </div>`).join('')
+        : '<p class="text-xs text-gray-400 p-3 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">Sin acciones. Usa «Agregar acción».</p>';
+      cont.querySelectorAll('.plan-row').forEach(row => {
+        const i = Number(row.dataset.idx);
+        row.querySelectorAll('input, select').forEach(inp => inp.addEventListener(inp.type === 'checkbox' ? 'change' : 'input', () => {
+          planLocal[i][inp.dataset.f] = inp.type === 'checkbox' ? inp.checked : inp.value;
+        }));
+      });
+      cont.querySelectorAll('.btn-eliminar-acc').forEach(b => b.addEventListener('click', () => { planLocal.splice(Number(b.dataset.idx), 1); renderPlanInputs(); }));
+    }
 
     function renderHallazgosInputs() {
       const cont = document.getElementById('lista-hallazgos');
@@ -2046,13 +2121,18 @@ async function editarActa(id) {
               <label class="block font-semibold text-gray-600 mb-0.5">Acción Correctiva Recomendada</label>
               <input type="text" class="input w-full text-xs ${h._dePlantilla ? 'campo-plantilla-luz-amarilla' : ''}" value="${esc(h.correccion || '')}" data-f="correccion">
             </div>
+            <div class="sm:col-span-2">
+              <label class="block font-semibold text-gray-600 mb-0.5">Descripción para la tabla de medios / bajos (opcional)</label>
+              <input type="text" class="input w-full text-xs" value="${esc(h.detalle || '')}" data-f="detalle" placeholder="Si se deja vacío se usa el título">
+            </div>
             <div>
               <label class="block font-semibold text-gray-600 mb-0.5">Responsable de Remediación</label>
               <input type="text" class="input w-full text-xs ${h._dePlantilla ? 'campo-plantilla-luz-amarilla' : ''}" value="${esc(h.responsable || '')}" data-f="responsable">
             </div>
             <div>
               <label class="block font-semibold text-gray-600 mb-0.5">Fecha Límite</label>
-              <input type="date" class="input w-full text-xs ${h._dePlantilla ? 'campo-plantilla-luz-amarilla' : ''}" value="${esc(h.fecha_limite || '')}" data-f="fecha_limite">
+              <input type="text" class="input w-full text-xs ${h._dePlantilla ? 'campo-plantilla-luz-amarilla' : ''}" value="${esc(h.fecha_limite || '')}" data-f="fecha_limite" placeholder="AAAA-MM-DD o Backlog" list="cal-plazos">
+              <datalist id="cal-plazos"><option value="Backlog"><option value="Próximo sprint"></datalist>
             </div>
           </div>
         </div>
@@ -2103,7 +2183,7 @@ async function editarActa(id) {
             ${dom.items.map((it, iIdx) => `
               <div class="py-2.5 px-3 flex flex-wrap items-center justify-between gap-3 text-xs hover:bg-gray-50/60">
                 <div class="flex-1 min-w-[280px]">
-                  <span class="font-medium text-gray-800">${esc(it.control)}</span>
+                  ${it.codigo ? `<span class="font-mono font-bold text-primary-700 mr-1">${esc(it.codigo)}</span>` : ''}<span class="font-medium text-gray-800">${esc(it.control)}</span>
                   ${it.ref ? `<span class="ml-2 text-gray-400 font-mono text-[11px]">[${esc(it.ref)}]</span>` : ''}
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
@@ -2187,6 +2267,22 @@ async function editarActa(id) {
     renderHallazgosInputs();
     renderControlesInputs();
     renderHerramientasInputs();
+    renderConformesInputs();
+    renderPlanInputs();
+    document.getElementById('btn-agregar-conforme')?.addEventListener('click', () => { conformesLocales.push({ area: '', resultado: 'Conforme', observacion: '' }); renderConformesInputs(); });
+    document.getElementById('btn-agregar-accion')?.addEventListener('click', () => {
+      planLocal.push({ accion: '', ref: '', prioridad: 'Medio', responsable: d.responsable_proyecto || '', fecha: '', hecho: false });
+      renderPlanInputs();
+    });
+    document.getElementById('edit-plan-auto')?.addEventListener('change', e => {
+      // Al pasar a manual se parte del plan actual (o del generado por los hallazgos)
+      if (!e.target.checked && !planLocal.length) {
+        planLocal = hallazgosLocales.map(h => ({ accion: h.correccion || `Corregir ${h.id}: ${h.titulo}`, ref: h.id,
+          prioridad: { critico: 'Crítico', alto: 'Alto', medio: 'Medio', bajo: 'Bajo' }[h.severidad] || 'Medio',
+          responsable: h.responsable || '', fecha: h.fecha_limite || '', hecho: ['corregido', 'verificado'].includes(h.estado) }));
+      }
+      renderPlanInputs();
+    });
 
     // ─── LÓGICA DE BOTÓN «LLENAR DATOS DE PLANTILLA» (Solo campos vacíos con luz amarilla) ───
     document.getElementById('btn-rellenar-plantilla')?.addEventListener('click', () => {
@@ -2360,8 +2456,13 @@ async function editarActa(id) {
       }));
       d.herramientas = herramientasLocales.map(({ _dePlantilla, ...resto }) => resto);
 
-      // Sincronizar automáticamente el Plan de Remediación con los hallazgos (si existen)
-      if (d.hallazgos.length > 0) {
+      d.conformes = conformesLocales.filter(c => (c.area || '').trim() || (c.observacion || '').trim());
+      d.plan_manual = !document.getElementById('edit-plan-auto')?.checked;
+
+      // Plan propio: se guarda tal cual. Si no, se arma desde los hallazgos.
+      if (d.plan_manual) {
+        d.plan_remediacion = planLocal.filter(a => (a.accion || '').trim());
+      } else if (d.hallazgos.length > 0) {
         d.plan_remediacion = d.hallazgos.map(h => ({
           accion: `Corregir ${h.id}: ${h.titulo}`,
           ref: h.id,
