@@ -418,6 +418,8 @@ let _filters = { tipo: '', estado: '', project_id: '', q: '' };
 let _currentActa = null;
 let _mode = 'list'; // 'list' | 'view' | 'edit'
 let _solucionariosAbiertos = new Set();
+// Filas de Sub-Acta visibles en la bandeja (ocultas hasta pulsar el botón ✓ del acta)
+let _subActasVisibles = new Set();
 let _actaRecienCreadaId = null;
 
 function esc(s) {
@@ -1270,13 +1272,28 @@ function renderBandeja() {
       const id = btn.dataset.id;
       const row = document.getElementById(`fila-solucionario-${id}`);
       if (!row) return;
-      if (row.classList.contains('hidden')) {
-        row.classList.remove('hidden');
-        _solucionariosAbiertos.add(id);
-      } else {
-        row.classList.add('hidden');
-        _solucionariosAbiertos.delete(id);
-      }
+      const abrir = row.classList.contains('hidden');
+      row.classList.toggle('hidden', !abrir);
+      if (abrir) _solucionariosAbiertos.add(id); else _solucionariosAbiertos.delete(id);
+      btn.querySelector('.transition-transform')?.classList.toggle('rotate-180', abrir);
+    });
+  });
+
+  // Botón ✓ del acta: muestra u oculta la fila de la Sub-Acta (y su detalle al cerrar)
+  c.querySelectorAll('[data-action="toggle-subacta"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const fila = document.getElementById(`fila-subacta-${id}`);
+      if (!fila) return;
+      const mostrar = fila.classList.contains('hidden');
+      fila.classList.toggle('hidden', !mostrar);
+      btn.classList.toggle('bg-emerald-50', mostrar);
+      if (mostrar) { _subActasVisibles.add(id); return; }
+      _subActasVisibles.delete(id);
+      _solucionariosAbiertos.delete(id);
+      if (_actaRecienCreadaId === id) _actaRecienCreadaId = null;
+      document.getElementById(`fila-solucionario-${id}`)?.classList.add('hidden');
+      fila.querySelector('[data-action="toggle-solucionario"] .transition-transform')?.classList.remove('rotate-180');
     });
   });
 
@@ -1337,6 +1354,7 @@ function renderFilaActa(a) {
   const cfg = TIPOS_CONFIG[a.tipo] || TIPOS_CONFIG.seguridad;
   const est = ESTADOS_CONFIG[a.estado] || ESTADOS_CONFIG.borrador;
   const estaAbierto = _solucionariosAbiertos.has(a.id) || a.id === _actaRecienCreadaId;
+  const subVisible = _subActasVisibles.has(a.id) || estaAbierto;
   const tieneSub = tieneSubActa(a);
   const sub = tieneSub ? obtenerSubActa(a) : null;
   const prog = calcularProgresoSubsanacion(a);
@@ -1407,7 +1425,7 @@ function renderFilaActa(a) {
       <td class="px-2.5 py-3 text-right">
         <div class="inline-grid grid-cols-4 gap-0.5 justify-items-center">
           ${tieneSub ? `
-            <button data-action="toggle-solucionario" data-id="${a.id}" class="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors" title="Ver / Ocultar Sub-Acta de Solucionado">
+            <button data-action="toggle-subacta" data-id="${a.id}" class="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors ${subVisible ? 'bg-emerald-50' : ''}" title="Ver / Ocultar Sub-Acta de Solucionado">
               ${icon('task_alt', 18)}
             </button>
           ` : `
@@ -1439,7 +1457,7 @@ function renderFilaActa(a) {
 
     ${tieneSub && sub ? `
     <!-- Fila subordinada: SUB-ACTA DE RESOLUCIÓN / SOLUCIONADO -->
-    <tr class="transition-colors border-t border-dashed border-emerald-200/90 bg-emerald-50/20 hover:bg-emerald-50/50">
+    <tr id="fila-subacta-${a.id}" class="${subVisible ? '' : 'hidden'} transition-colors border-t border-dashed border-emerald-200/90 bg-emerald-50/20 hover:bg-emerald-50/50">
       <td class="px-4 py-2.5 font-mono font-bold text-emerald-800 whitespace-nowrap">
         <a href="javascript:void(0)" data-action="ver-subacta" data-id="${a.id}" class="hover:underline inline-flex items-center gap-1.5 pl-3 whitespace-nowrap" title="Ver Documento Oficial de la Sub-Acta">
           <span class="text-emerald-500 font-extrabold text-sm">↳</span>
@@ -1481,7 +1499,7 @@ function renderFilaActa(a) {
       <td class="px-4 py-2.5 text-right whitespace-nowrap">
         <div class="flex items-center justify-end gap-1">
           <button data-action="toggle-solucionario" data-id="${a.id}" class="p-1.5 rounded-lg text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100/80 transition-colors" title="Desplegar / Ocultar detalle del Solucionario">
-            ${icon('expand_more', 18)}
+            <span class="inline-flex transition-transform ${estaAbierto ? 'rotate-180' : ''}">${icon('expand_more', 18)}</span>
           </button>
           <button data-action="editar-subacta" data-id="${a.id}" class="p-1.5 rounded-lg text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors" title="Editar Sub-Acta de Corrección (${esc(sub.codigo)})">
             ${icon('edit', 18)}
