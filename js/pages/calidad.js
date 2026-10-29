@@ -1886,9 +1886,8 @@ function abrirModalNuevaActa() {
       .filter(Boolean)
       .join(' / ');
 
-    const plantillaSel = PLANTILLAS_SOLUCIONARIO[tipo] || PLANTILLAS_SOLUCIONARIO.seguridad;
 
-    // Estructura inicial del acta con campos en blanco y plantilla de solucionario desplegada
+    // Estructura inicial del acta con campos en blanco (la Sub-Acta se genera aparte)
     const datosIniciales = {
       tipo,
       fecha_emision: fechaEmision,
@@ -1922,31 +1921,6 @@ function abrirModalNuevaActa() {
         website_url: p.website_url || '',
         responsible_name: p.responsible_name || '',
       })),
-      solucionario: {
-        plantilla_id: tipo,
-        fecha_publicacion: hoyHoraFormateada(),
-        contenido: JSON.parse(JSON.stringify(plantillaSel)),
-      },
-      sub_acta: {
-        codigo: '',
-        tipo,
-        titulo: 'SUB-ACTA DE RESOLUCIÓN Y SOLUCIONARIO TÉCNICO',
-        subtitulo: 'Verificación directa sobre código fuente, remediación de hallazgos y pruebas de regresión',
-        fecha_emision: fechaEmision,
-        fecha_publicacion: hoyHoraFormateada(),
-        version: '1.0',
-        estado: 'subsanado',
-        auditor,
-        responsable_proyecto: respNombres || (proyectosSeleccionados[0]?.responsible_name || ''),
-        plantilla_id: tipo,
-        contenido: JSON.parse(JSON.stringify(plantillaSel)),
-        proyectos: proyectosSeleccionados.map(p => ({
-          id: p.id,
-          name: p.name,
-          code: p.code || 'S/C',
-          client: p.client || 'Interno',
-        })),
-      },
     };
 
     try {
@@ -1956,22 +1930,12 @@ function abrirModalNuevaActa() {
         datos: datosIniciales,
       });
 
-      // Persistir código exacto COR-[acta.codigo] en la Sub-Acta en BD Neon
-      if (resp?.codigo) {
-        datosIniciales.sub_acta.id = `cor-${resp.id}`;
-        datosIniciales.sub_acta.codigo = `COR-${resp.codigo}`;
-        datosIniciales.sub_acta.acta_origen_id = resp.id;
-        datosIniciales.sub_acta.acta_origen_codigo = resp.codigo;
-        await api.put(`/calidad/actas/${resp.id}`, { datos: datosIniciales }).catch(() => {});
-      }
 
       closeModal();
-      _solucionariosAbiertos.add(resp.id);
-      _actaRecienCreadaId = resp.id;
       _mode = 'list';
       await recargarActas();
       renderBandeja();
-      toast(`Acta ${resp.codigo} y Sub-Acta COR-${resp.codigo} creadas exitosamente`);
+      toast(`Acta ${resp.codigo} creada. La Sub-Acta de solucionado se genera con «Generar Corrección»`);
     } catch (e) {
       toast(e.message || 'Error al crear acta', 'error');
     }
