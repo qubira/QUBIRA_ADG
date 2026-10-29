@@ -93,7 +93,8 @@ export function wireRichEditor(id) {
 function safeParse(s) {
   if (!s) return null;
   const iso = typeof s === 'string' ? s.replace(' ', 'T') : s;
-  const d = new Date(iso);
+  // 'YYYY-MM-DD' sola se interpreta como medianoche UTC y en Lima retrocede un día
+  const d = typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(iso + 'T00:00:00') : new Date(iso);
   return isNaN(d.getTime()) ? null : d;
 }
 

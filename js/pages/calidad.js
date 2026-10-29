@@ -700,6 +700,18 @@ export async function render(params = {}) {
   }
 }
 
+// Un acta puede auditar varios proyectos (p. ej. WEB + API): todos cuentan por igual
+function idsProyectosActa(a) {
+  const d = a.datos || {};
+  return [...new Set([a.project_id, ...(d.proyectos_ids || []), ...((d.proyectos || []).map(p => p.id))].filter(Boolean))];
+}
+function nombreProyectosActa(acta) {
+  const d = acta.datos || {};
+  if (d.proyecto_nombre) return d.proyecto_nombre;
+  if (Array.isArray(d.proyectos) && d.proyectos.length > 1) return d.proyectos.map(p => `${p.name} (${p.code || 'S/C'})`).join(' · ');
+  return acta.project_name || '';
+}
+
 // ─── BANDEJA DE ACTAS (List View) ─────────────────────────────────────────────
 function renderBandeja() {
   const c = document.getElementById('calidad-container');
@@ -709,11 +721,11 @@ function renderBandeja() {
   const filtradas = _actas.filter(a => {
     if (_filters.tipo && a.tipo !== _filters.tipo) return false;
     if (_filters.estado && a.estado !== _filters.estado) return false;
-    if (_filters.project_id && a.project_id !== _filters.project_id) return false;
+    if (_filters.project_id && !idsProyectosActa(a).includes(_filters.project_id)) return false;
     if (_filters.q) {
       const q = _filters.q.toLowerCase();
       const code = (a.codigo || '').toLowerCase();
-      const proj = (a.project_name || '').toLowerCase();
+      const proj = [a.project_name, a.project_code, ...((a.datos?.proyectos) || []).flatMap(p => [p.name, p.code])].filter(Boolean).join(' ').toLowerCase();
       const aud = (a.auditor || '').toLowerCase();
       if (!code.includes(q) && !proj.includes(q) && !aud.includes(q)) return false;
     }
@@ -1726,7 +1738,7 @@ function generarHtmlDocumentoWord(acta) {
             <p style="margin:1pt;line-height:1.15;"><span style="font-weight:bold;color:#1F3A5F;font-size:9.5pt;font-family:'Calibri', Arial, sans-serif;">Proyecto</span></p>
           </td>
           <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5.5pt;vertical-align:middle;">
-            <p style="margin:1pt;line-height:1.15;"><span style="font-weight:bold;color:#1F2937;font-size:9.5pt;font-family:'Calibri', Arial, sans-serif;">${esc(d.proyecto_nombre || acta.project_name || 'Proyecto QUBIRA')}</span></p>
+            <p style="margin:1pt;line-height:1.15;"><span style="font-weight:bold;color:#1F2937;font-size:9.5pt;font-family:'Calibri', Arial, sans-serif;">${esc(nombreProyectosActa(acta) || 'Proyecto QUBIRA')}</span></p>
           </td>
           <td style="border:0.5pt solid #C9D3DF;background:#EAF1F8;padding:3.5pt 5.5pt;vertical-align:middle;">
             <p style="margin:1pt;line-height:1.15;"><span style="font-weight:bold;color:#1F3A5F;font-size:9.5pt;font-family:'Calibri', Arial, sans-serif;">Cliente</span></p>
@@ -3260,7 +3272,7 @@ function generarTextoActa(acta) {
   L.push(linea);
   L.push(txtTabla([{ titulo: 'Campo', ancho: 20 }, { titulo: 'Valor', ancho: 73 }], [
     ['N.º de acta', acta.codigo], ['Fecha de emisión', acta.fecha_emision || d.fecha_emision || ''], ['Versión', acta.version || '1.0'],
-    ['Clasificación', d.clasificacion || 'Confidencial'], ['Proyecto', d.proyecto_nombre || acta.project_name || ''], ['Cliente', d.cliente || acta.project_client || ''],
+    ['Clasificación', d.clasificacion || 'Confidencial'], ['Proyecto', nombreProyectosActa(acta)], ['Cliente', d.cliente || acta.project_client || ''],
   ]));
 
   L.push(txtTitulo('1. DATOS GENERALES DE LA AUDITORÍA'));
