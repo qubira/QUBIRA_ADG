@@ -540,6 +540,9 @@ function renderBandeja() {
   c.querySelectorAll('[data-action="word"]').forEach(btn => {
     btn.addEventListener('click', () => descargarWordPorId(btn.dataset.id));
   });
+  c.querySelectorAll('[data-action="txt"]').forEach(btn => {
+    btn.addEventListener('click', () => descargarTxtPorId(btn.dataset.id));
+  });
   c.querySelectorAll('[data-action="pdf"]').forEach(btn => {
     btn.addEventListener('click', () => imprimirPorId(btn.dataset.id));
   });
@@ -596,6 +599,9 @@ function renderFilaActa(a) {
           </button>
           <button data-action="word" data-id="${a.id}" class="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-gray-100" title="Descargar Word (.doc)">
             ${icon('article', 18)}
+          </button>
+          <button data-action="txt" data-id="${a.id}" class="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100" title="Descargar Bloc de notas (.txt)">
+            ${icon('description', 18)}
           </button>
           <button data-action="pdf" data-id="${a.id}" class="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-gray-100" title="Imprimir / Exportar PDF">
             ${icon('picture_as_pdf', 18)}
@@ -1002,6 +1008,10 @@ async function verActa(id) {
               ${icon('file_download', 18)} Descargar Word (.doc)
             </button>
 
+            <button id="btn-descargar-txt" class="btn-secondary inline-flex items-center gap-1.5 text-sm py-2 px-3 text-gray-700 border-gray-300 hover:bg-gray-50" title="Descargar como texto plano para el Bloc de notas">
+              ${icon('description', 18)} Bloc de notas (.txt)
+            </button>
+
             <button id="btn-imprimir-pdf" class="btn-primary inline-flex items-center gap-1.5 text-sm py-2 px-3">
               ${icon('print', 18)} Imprimir / PDF
             </button>
@@ -1035,6 +1045,7 @@ async function verActa(id) {
     });
     document.getElementById('btn-editar-doc')?.addEventListener('click', () => editarActa(acta.id));
     document.getElementById('btn-descargar-word')?.addEventListener('click', () => descargarWord(acta));
+    document.getElementById('btn-descargar-txt')?.addEventListener('click', () => descargarTxt(acta));
     document.getElementById('btn-imprimir-pdf')?.addEventListener('click', () => window.print());
 
     document.getElementById('cambiar-estado-select')?.addEventListener('change', async e => {
@@ -2572,6 +2583,153 @@ function descargarWord(acta) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast(`Documento Word descargado: ${acta.codigo}.doc`);
+}
+
+// ─── DESCARGAR BLOC DE NOTAS (.txt) ───────────────────────────────────────────
+// Mismo contenido del acta en texto plano: secciones numeradas y tablas
+// dibujadas con caracteres (se ven alineadas con fuente de ancho fijo).
+const TXT_ANCHO = 100;
+function txtPartir(texto, ancho) {
+  const lineas = [];
+  String(texto ?? '').split(/\r?\n/).forEach(parrafo => {
+    let linea = '';
+    parrafo.split(/\s+/).filter(Boolean).forEach(palabra => {
+      while (palabra.length > ancho) { if (linea) { lineas.push(linea); linea = ''; } lineas.push(palabra.slice(0, ancho)); palabra = palabra.slice(ancho); }
+      if (!linea) linea = palabra;
+      else if ((linea + ' ' + palabra).length <= ancho) linea += ' ' + palabra;
+      else { lineas.push(linea); linea = palabra; }
+    });
+    lineas.push(linea);
+  });
+  return lineas.length ? lineas : [''];
+}
+// Tabla: columnas [{titulo, ancho}] y filas [[...]]
+function txtTabla(columnas, filas) {
+  const sep = (izq, medio, der) => izq + columnas.map(c => '─'.repeat(c.ancho + 2)).join(medio) + der;
+  const fila = celdas => {
+    const partes = celdas.map((v, i) => txtPartir(v, columnas[i].ancho));
+    const alto = Math.max(...partes.map(x => x.length));
+    const out = [];
+    for (let k = 0; k < alto; k++) out.push('│' + partes.map((x, i) => ' ' + (x[k] || '').padEnd(columnas[i].ancho) + ' ').join('│') + '│');
+    return out.join('\n');
+  };
+  const cuerpo = filas.length ? filas.map(fila).join('\n' + sep('├', '┼', '┤') + '\n') : fila(columnas.map((c, i) => i === 0 ? '(sin registros)' : ''));
+  return [sep('┌', '┬', '┐'), fila(columnas.map(c => c.titulo)), sep('╞', '╪', '╡').replace(/─/g, '═'), cuerpo, sep('└', '┴', '┘')].join('\n');
+}
+function txtTitulo(texto) { return '\n' + texto + '\n' + '─'.repeat(Math.min(TXT_ANCHO, texto.length)); }
+
+function generarTextoActa(acta) {
+  const cfg = TIPOS_CONFIG[acta.tipo] || TIPOS_CONFIG.seguridad;
+  const d = acta.datos || {};
+  const hs = Array.isArray(d.hallazgos) ? d.hallazgos : [];
+  const SEV = { critico: 'Crítico', alto: 'Alto', medio: 'Medio', bajo: 'Bajo' };
+  const EST = { pendiente: 'Pendiente', en_progreso: 'En progreso', corregido: 'Corregido', verificado: 'Verificado' };
+  const por = sev => hs.filter(h => h.severidad === sev);
+  const cnt = { critico: por('critico').length, alto: por('alto').length, medio: por('medio').length, bajo: por('bajo').length };
+  const L = [];
+  const linea = '═'.repeat(TXT_ANCHO);
+
+  L.push(linea);
+  L.push('QUBIRA S.A.C.');
+  L.push(cfg.titulo);
+  L.push(cfg.subtitulo);
+  L.push(linea);
+  L.push(txtTabla([{ titulo: 'Campo', ancho: 20 }, { titulo: 'Valor', ancho: 73 }], [
+    ['N.º de acta', acta.codigo], ['Fecha de emisión', acta.fecha_emision || d.fecha_emision || ''], ['Versión', acta.version || '1.0'],
+    ['Clasificación', d.clasificacion || 'Confidencial'], ['Proyecto', d.proyecto_nombre || acta.project_name || ''], ['Cliente', d.cliente || acta.project_client || ''],
+  ]));
+
+  L.push(txtTitulo('1. DATOS GENERALES DE LA AUDITORÍA'));
+  L.push(txtTabla([{ titulo: 'Campo', ancho: 22 }, { titulo: 'Detalle', ancho: 71 }], [
+    ['Entorno auditado', d.entorno || ''], ['Repositorios', d.repositorios || ''], ['Alcance', d.alcance || ''], ['Metodología', d.metodologia || ''],
+    ['Periodo de ejecución', `${d.periodo_desde || '—'} al ${d.periodo_hasta || '—'}`], ['Auditor responsable', d.auditor || acta.auditor || ''], ['Próxima revisión', d.proxima_revision || '—'],
+  ]));
+
+  L.push(txtTitulo('2. RESUMEN EJECUTIVO'));
+  L.push('Conclusión:');
+  txtPartir(d.conclusion || '—', TXT_ANCHO - 2).forEach(x => L.push('  ' + x));
+  L.push('');
+  L.push(txtTabla([{ titulo: 'CRÍTICO', ancho: 20 }, { titulo: 'ALTO', ancho: 20 }, { titulo: 'MEDIO', ancho: 20 }, { titulo: 'BAJO', ancho: 20 }],
+    [[`${cnt.critico} hallazgos`, `${cnt.alto} hallazgos`, `${cnt.medio} hallazgos`, `${cnt.bajo} hallazgos`]]));
+
+  L.push(txtTitulo('3. CRITERIOS DE SEVERIDAD'));
+  L.push(txtTabla([{ titulo: 'Severidad', ancho: 10 }, { titulo: 'Criterio', ancho: 62 }, { titulo: 'Plazo', ancho: 17 }],
+    ['critico', 'alto', 'medio', 'bajo'].map(k => [SEV[k], SEVERIDAD_CONFIG[k].criterio, SEVERIDAD_CONFIG[k].plazo])));
+
+  L.push(txtTitulo('4. RESUMEN DE HALLAZGOS'));
+  L.push(txtTabla([{ titulo: 'N.º', ancho: 5 }, { titulo: 'Hallazgo', ancho: 38 }, { titulo: 'Severidad', ancho: 9 }, { titulo: 'Estado', ancho: 11 }, { titulo: 'Responsable', ancho: 11 }, { titulo: 'Fecha límite', ancho: 12 }],
+    hs.map(h => [h.id, h.titulo, SEV[h.severidad] || h.severidad, EST[h.estado] || h.estado, h.responsable || '', h.fecha_limite || ''])));
+  L.push('Estados válidos: Pendiente · En progreso · Corregido · Verificado.');
+
+  L.push(txtTitulo('5. DETALLE DE HALLAZGOS'));
+  const ficha = h => txtTabla([{ titulo: `Hallazgo ${h.id}`, ancho: 20 }, { titulo: `${h.titulo}  [${(SEV[h.severidad] || '').toUpperCase()}]`, ancho: 73 }], [
+    ['Severidad', SEV[h.severidad] || ''], ['Evidencia', h.evidencia || '—'], ['Impacto', h.impacto || '—'], ['Ubicación', h.ubicacion || '—'],
+    ['Corrección', h.correccion || '—'], ['Responsable / Plazo', `${h.responsable || '—'} · ${h.fecha_limite || '—'}`], ['Estado', EST[h.estado] || h.estado || ''],
+  ]);
+  L.push('\n5.1  Críticos — acción inmediata');
+  L.push(por('critico').length ? por('critico').map(ficha).join('\n\n') : '  No se identificaron hallazgos de severidad crítica.');
+  L.push('\n5.2  Altos');
+  L.push(por('alto').length ? por('alto').map(ficha).join('\n\n') : '  No se identificaron hallazgos de severidad alta.');
+  const tablaCorta = lista => txtTabla([{ titulo: 'N.º', ancho: 5 }, { titulo: 'Hallazgo', ancho: 38 }, { titulo: 'Ubicación', ancho: 22 }, { titulo: 'Corrección', ancho: 22 }],
+    lista.map(h => [h.id, h.detalle || h.titulo, h.ubicacion || '—', h.correccion || '—']));
+  L.push('\n5.3  Medios');
+  L.push(tablaCorta(por('medio')));
+  L.push('\n5.4  Bajos y controles conformes');
+  if (por('bajo').length) { L.push('Bajos:'); L.push(tablaCorta(por('bajo'))); }
+  const conformes = Array.isArray(d.conformes) ? d.conformes : [];
+  if (conformes.length) {
+    L.push('Controles conformes:');
+    L.push(txtTabla([{ titulo: 'Área / Dominio', ancho: 22 }, { titulo: 'Resultado', ancho: 12 }, { titulo: 'Observación', ancho: 56 }], conformes.map(c => [c.area, c.resultado || 'Conforme', c.observacion || ''])));
+  }
+
+  L.push(txtTitulo('6. CONTROLES REVISADOS'));
+  const filasCtr = [];
+  (Array.isArray(d.controles) ? d.controles : []).forEach(dom => (dom.items || []).forEach((it, i) => filasCtr.push([
+    i === 0 ? dom.dominio : '', `${it.codigo ? it.codigo + '  ' : ''}${it.control}`, it.cumple === 'si' ? 'Sí' : it.cumple === 'no' ? 'No' : 'N.A.', it.ref || '—'])));
+  L.push(txtTabla([{ titulo: 'Dominio', ancho: 20 }, { titulo: 'Control', ancho: 50 }, { titulo: 'Cumple', ancho: 6 }, { titulo: 'Ref.', ancho: 12 }], filasCtr));
+
+  L.push(txtTitulo('7. HERRAMIENTAS RECOMENDADAS'));
+  L.push(txtTabla([{ titulo: 'Herramienta', ancho: 28 }, { titulo: 'Prioridad', ancho: 9 }, { titulo: 'Justificación', ancho: 53 }],
+    (Array.isArray(d.herramientas) ? d.herramientas : []).map(t => [t.herramienta, t.prioridad || '', t.justificacion || ''])));
+
+  L.push(txtTitulo('8. PLAN DE REMEDIACIÓN'));
+  L.push(txtTabla([{ titulo: 'Acción correctiva', ancho: 34 }, { titulo: 'Ref.', ancho: 11 }, { titulo: 'Prioridad', ancho: 9 }, { titulo: 'Responsable', ancho: 13 }, { titulo: 'Fecha', ancho: 10 }, { titulo: 'Hecho', ancho: 5 }],
+    (Array.isArray(d.plan_remediacion) ? d.plan_remediacion : []).map(a => [a.accion, a.ref || '', a.prioridad || '', a.responsable || '', a.fecha || '', a.hecho ? '[X]' : '[ ]'])));
+
+  L.push(txtTitulo('9. CONFORMIDAD'));
+  txtPartir('Las partes firmantes declaran conocer los hallazgos descritos en la presente acta y se comprometen a ejecutar el plan de remediación en los plazos establecidos.', TXT_ANCHO).forEach(x => L.push(x));
+  L.push('');
+  L.push('');
+  const firma = (nombre, cargo, dni, fecha) => [`______________________________________`, nombre, cargo, `DNI: ${dni || '__________'}   Fecha: ${fecha}`];
+  const f1 = firma(d.auditor || acta.auditor || 'Auditor responsable', d.auditor_cargo || 'Auditor responsable', d.auditor_dni, d.auditor_fecha || acta.fecha_emision || '');
+  const f2 = firma(d.responsable_proyecto || 'Responsable del proyecto', d.responsable_cargo || 'Responsable del proyecto', d.responsable_dni, d.responsable_fecha || acta.fecha_emision || '');
+  f1.forEach((x, i) => L.push(x.padEnd(50) + f2[i]));
+  L.push('');
+  L.push(linea);
+  L.push(`Documento confidencial — uso interno · QUBIRA S.A.C. · ${acta.codigo}`);
+  return L.join('\r\n').replace(/(?<!\r)\n/g, '\r\n');
+}
+
+function descargarTxt(acta) {
+  const cfg = TIPOS_CONFIG[acta.tipo] || TIPOS_CONFIG.seguridad;
+  const blob = new Blob(['\ufeff', generarTextoActa(acta)], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${acta.codigo} - ${cfg.titulo} - QUBIRA.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(`Bloc de notas descargado: ${acta.codigo}.txt`);
+}
+
+async function descargarTxtPorId(id) {
+  try {
+    descargarTxt(await api.get(`/calidad/actas/${id}`));
+  } catch (e) {
+    toast('Error al descargar el Bloc de notas', 'error');
+  }
 }
 
 async function descargarWordPorId(id) {
