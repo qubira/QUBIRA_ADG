@@ -12,6 +12,7 @@ import { render as renderAuditoria }   from './pages/auditoria.js';
 import { render as renderVisitas }     from './pages/visitas.js';
 import { render as renderCostoHerramientas } from './pages/costo-herramientas.js';
 import { render as renderInfoTecnico }       from './pages/info-tecnico.js?v=33';
+import { render as renderCalidad }           from './pages/calidad.js';
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 const exactRoutes = {};
@@ -55,6 +56,7 @@ const NAV = [
   { path: '/projects',   iconName: 'folder',        label: 'Proyectos' },
   { path: '/calendario', iconName: 'calendar_month', label: 'Calendario' },
   { path: '/contracts',  iconName: 'description',   label: 'Contratos & Proformas' },
+  { path: '/calidad',    iconName: 'verified',      label: 'Calidad' },
   { path: '/config',     iconName: 'settings',      label: 'Configuración' },
   { path: '/costo-herramientas', iconName: 'payments', label: 'Costo por OPP HERRAMIENTAS' },
   { path: '/info-tecnico', iconName: 'memory',   label: 'Info Técnico' },
@@ -179,6 +181,8 @@ addRoute('/calendario',      () => renderCalendario());
 addRoute('/auditoria',       () => renderAuditoria());
 addRoute('/visitas',         () => renderVisitas());
 addRoute('/contracts',       () => renderContracts());
+addRoute('/calidad',         () => renderCalidad());
+addRoute('/calidad/:id',     p  => renderCalidad(p));
 addRoute('/config',          () => renderConfig());
 addRoute('/costo-herramientas', () => renderCostoHerramientas());
 addRoute('/info-tecnico',    () => renderInfoTecnico());

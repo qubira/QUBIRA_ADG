@@ -7,7 +7,7 @@ import { toast, showModal, closeModal, confirmModal,
          isOverdue, overdueBadge, previewFile,
          sanitizeRichText, richTextToolbar, wireRichEditor } from '../utils.js';
 
-let _id, _project, _contracts, _documents, _messages, _emails, _activities, _requirements;
+let _id, _project, _contracts, _documents, _messages, _emails, _activities, _requirements, _auditorias = [];
 let _tab = 'overview';
 let _editingReqId = null;
 let _scrumRoles = [], _scrumUsers = [];
@@ -64,7 +64,8 @@ function loadAll() {
     api.get('/emails',        { project_id: _id }),
     api.get('/activities',    { project_id: _id }),
     api.get('/requirements',  { project_id: _id }),
-  ]).then(([proj, contr, docs, msgs, mails, acts, reqs]) => {
+    api.get('/calidad/actas',  { project_id: _id }).catch(() => []),
+  ]).then(([proj, contr, docs, msgs, mails, acts, reqs, auds]) => {
     _project      = proj;
     _contracts    = contr;
     _documents    = docs;
@@ -72,6 +73,7 @@ function loadAll() {
     _emails       = mails;
     _activities   = acts;
     _requirements = reqs;
+    _auditorias   = Array.isArray(auds) ? auds : [];
     renderPage();
   }).catch(() => { navigate('/projects'); });
 }
@@ -128,9 +130,9 @@ function renderPage() {
   <!-- Tabs -->
   <div class="border-b border-gray-200 mb-5">
     <div class="flex gap-1 overflow-x-auto" id="tabs">
-      ${['overview','github','scrum','schedule','technologies','requirements','contracts','documents','whatsapp','emails','activity'].map((t,i) => {
+      ${['overview','github','scrum','schedule','technologies','requirements','contracts','documents','calidad','whatsapp','emails','activity'].map((t,i) => {
         const labels = ['Resumen','GitHub','Scrum','Cronograma','Tecnologías',`Requisitos (${_requirements.length})`,`Contratos (${_contracts.length})`,`Documentos (${_documents.length})`,
-                        `WhatsApp (${_messages.length})`,`Correos (${_emails.length})`,'Actividad'];
+                        `Calidad (${_auditorias.length})`,`WhatsApp (${_messages.length})`,`Correos (${_emails.length})`,'Actividad'];
         return `<button data-tab="${t}" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
           ${_tab===t ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-700'}">${labels[i]}</button>`;
       }).join('')}
@@ -388,6 +390,73 @@ function renderTabContent() {
 
   if (_tab === 'activity') {
     c.innerHTML = `<div class="card p-5">${historyTimeline(_activities)}</div>`;
+  }
+
+  if (_tab === 'calidad') {
+    c.innerHTML = `
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-base font-bold text-gray-900">Actas de Calidad & Auditoría</h3>
+            <p class="text-xs text-gray-500">Auditorías técnicas de Seguridad (SEC), Calidad de Software (CAL) y Reglas de Negocio (RN)</p>
+          </div>
+          <button id="btn-nueva-auditoria-proj" class="btn-primary text-xs inline-flex items-center gap-1.5 py-2 px-3">
+            ${icon('add_circle', 16)} Ir al Gestor de Calidad
+          </button>
+        </div>
+
+        ${_auditorias.length === 0 ? `
+          <div class="card p-12 text-center text-gray-400">
+            <span class="material-icons text-4xl text-gray-300 mb-2">verified</span>
+            <p class="font-medium text-gray-600">No hay auditorías registradas para este proyecto</p>
+            <p class="text-xs text-gray-400 mt-1">Crea una nueva acta oficial en el módulo de Calidad.</p>
+          </div>
+        ` : `
+          <div class="card divide-y divide-gray-100 overflow-hidden bg-white shadow-sm border border-gray-200">
+            ${_auditorias.map(a => {
+              const res = a.resumen || { severidad: {} };
+              const s = res.severidad || {};
+              const badgeClass = a.tipo === 'seguridad' ? 'bg-indigo-100 text-indigo-700' : a.tipo === 'calidad' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700';
+              return `
+                <div class="p-4 flex flex-wrap items-center justify-between gap-3 hover:bg-gray-50/70 transition-colors">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${badgeClass} shrink-0">
+                      ${a.tipo === 'seguridad' ? 'SEC' : a.tipo === 'calidad' ? 'CAL' : 'RN'}
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="font-mono font-bold text-sm text-primary-700">${esc(a.codigo)}</span>
+                        <span class="text-xs text-gray-400">v${esc(a.version || '1.0')}</span>
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-medium border bg-gray-50 text-gray-700 capitalize">${esc((a.estado || 'borrador').replace('_', ' '))}</span>
+                      </div>
+                      <p class="text-xs text-gray-500 mt-0.5">
+                        Emisión: ${fmtDate(a.fecha_emision)} &nbsp;·&nbsp; Auditor: <b>${esc(a.auditor || '—')}</b>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-1 text-xs font-mono font-semibold">
+                      <span class="px-1.5 py-0.5 rounded text-white" style="background:#C0392B" title="${s.critico || 0} Críticos">${s.critico || 0}</span>
+                      <span class="px-1.5 py-0.5 rounded text-white" style="background:#E67E22" title="${s.alto || 0} Altos">${s.alto || 0}</span>
+                      <span class="px-1.5 py-0.5 rounded text-gray-900" style="background:#F1C40F" title="${s.medio || 0} Medios">${s.medio || 0}</span>
+                      <span class="px-1.5 py-0.5 rounded text-white" style="background:#27AE60" title="${s.bajo || 0} Bajos">${s.bajo || 0}</span>
+                    </div>
+                    <a href="#/calidad/${a.id}" class="btn-secondary text-xs inline-flex items-center gap-1 py-1.5 px-3 text-primary-700 hover:bg-primary-50">
+                      ${icon('visibility', 16)} Ver Documento
+                    </a>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
+      </div>
+    `;
+
+    document.getElementById('btn-nueva-auditoria-proj')?.addEventListener('click', () => {
+      navigate('/calidad');
+    });
   }
 }
 
