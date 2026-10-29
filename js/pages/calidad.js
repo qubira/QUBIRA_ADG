@@ -439,22 +439,88 @@ function hoyHoraFormateada() {
   return `${dia}/${mes}/${anio} ${hora}:${min}`;
 }
 
-function obtenerSolucionarioActa(acta) {
-  if (acta.datos?.solucionario?.contenido) {
-    return acta.datos.solucionario;
+function obtenerSubActa(acta) {
+  const tipo = acta.tipo || 'seguridad';
+  const codigoBase = acta.codigo || 'AUD-SEC-2026-001';
+  const codigoCor = codigoBase.startsWith('COR-') ? codigoBase : `COR-${codigoBase}`;
+
+  if (acta.datos?.sub_acta) {
+    const s = acta.datos.sub_acta;
+    return {
+      id: s.id || `cor-${acta.id}`,
+      codigo: s.codigo && s.codigo.startsWith('COR-') ? s.codigo : codigoCor,
+      acta_origen_id: acta.id,
+      acta_origen_codigo: acta.codigo,
+      tipo: s.tipo || tipo,
+      titulo: s.titulo || 'SUB-ACTA DE RESOLUCIÓN Y SOLUCIONARIO TÉCNICO',
+      subtitulo: s.subtitulo || 'Verificación directa sobre código fuente, remediación de hallazgos y pruebas de regresión',
+      fecha_emision: s.fecha_emision || acta.fecha_emision || hoyISO(),
+      fecha_publicacion: s.fecha_publicacion || acta.datos?.solucionario?.fecha_publicacion || fmtDate(acta.fecha_emision) || hoyHoraFormateada(),
+      version: s.version || '1.0',
+      estado: s.estado || 'subsanado',
+      auditor: s.auditor || acta.auditor || acta.datos?.auditor || 'Abraham Aranda Cerna',
+      responsable_proyecto: s.responsable_proyecto || acta.datos?.responsable_proyecto || 'Responsable de Desarrollo',
+      plantilla_id: s.plantilla_id || acta.datos?.solucionario?.plantilla_id || tipo,
+      contenido: s.contenido || acta.datos?.solucionario?.contenido || JSON.parse(JSON.stringify(PLANTILLAS_SOLUCIONARIO[tipo] || PLANTILLAS_SOLUCIONARIO.seguridad)),
+      proyectos: Array.isArray(s.proyectos) && s.proyectos.length ? s.proyectos : (Array.isArray(acta.datos?.proyectos) ? acta.datos.proyectos : (acta.project_name ? [{ name: acta.project_name, code: acta.project_code, client: acta.project_client }] : [])),
+    };
   }
-  const key = acta.tipo && PLANTILLAS_SOLUCIONARIO[acta.tipo] ? acta.tipo : 'seguridad';
-  const plantilla = PLANTILLAS_SOLUCIONARIO[key];
+
+  if (acta.datos?.solucionario) {
+    const sol = acta.datos.solucionario;
+    return {
+      id: `cor-${acta.id}`,
+      codigo: codigoCor,
+      acta_origen_id: acta.id,
+      acta_origen_codigo: acta.codigo,
+      tipo,
+      titulo: 'SUB-ACTA DE RESOLUCIÓN Y SOLUCIONARIO TÉCNICO',
+      subtitulo: 'Verificación directa sobre código fuente, remediación de hallazgos y pruebas de regresión',
+      fecha_emision: acta.fecha_emision || hoyISO(),
+      fecha_publicacion: sol.fecha_publicacion || fmtDate(acta.fecha_emision) || hoyHoraFormateada(),
+      version: '1.0',
+      estado: 'subsanado',
+      auditor: acta.auditor || acta.datos?.auditor || 'Abraham Aranda Cerna',
+      responsable_proyecto: acta.datos?.responsable_proyecto || 'Responsable de Desarrollo',
+      plantilla_id: sol.plantilla_id || tipo,
+      contenido: JSON.parse(JSON.stringify(sol.contenido || PLANTILLAS_SOLUCIONARIO[tipo] || PLANTILLAS_SOLUCIONARIO.seguridad)),
+      proyectos: Array.isArray(acta.datos?.proyectos) ? acta.datos.proyectos : (acta.project_name ? [{ name: acta.project_name, code: acta.project_code, client: acta.project_client }] : []),
+    };
+  }
+
+  const plantilla = PLANTILLAS_SOLUCIONARIO[tipo] || PLANTILLAS_SOLUCIONARIO.seguridad;
   return {
-    plantilla_id: key,
-    fecha_publicacion: fmtDate(acta.fecha_emision),
+    id: `cor-${acta.id}`,
+    codigo: codigoCor,
+    acta_origen_id: acta.id,
+    acta_origen_codigo: acta.codigo,
+    tipo,
+    titulo: 'SUB-ACTA DE RESOLUCIÓN Y SOLUCIONARIO TÉCNICO',
+    subtitulo: 'Verificación directa sobre código fuente, remediación de hallazgos y pruebas de regresión',
+    fecha_emision: acta.fecha_emision || hoyISO(),
+    fecha_publicacion: fmtDate(acta.fecha_emision) || hoyHoraFormateada(),
+    version: '1.0',
+    estado: 'subsanado',
+    auditor: acta.auditor || acta.datos?.auditor || 'Abraham Aranda Cerna',
+    responsable_proyecto: acta.datos?.responsable_proyecto || 'Responsable de Desarrollo',
+    plantilla_id: tipo,
     contenido: JSON.parse(JSON.stringify(plantilla)),
+    proyectos: Array.isArray(acta.datos?.proyectos) ? acta.datos.proyectos : (acta.project_name ? [{ name: acta.project_name, code: acta.project_code, client: acta.project_client }] : []),
   };
 }
 
+function obtenerSolucionarioActa(acta) {
+  return obtenerSubActa(acta);
+}
+
 function generarTextoPlanoSolucionario(sol, acta) {
+  const sub = obtenerSubActa(acta);
   const cont = sol.contenido || sol;
-  let txt = `Resumen de lo corregido — ${acta.codigo}\n`;
+  let txt = `QUBIRA S.A.C. — SUB-ACTA DE RESOLUCIÓN Y SOLUCIONARIO TÉCNICO\n`;
+  txt += `Código de Sub-Acta: ${sub.codigo}\n`;
+  txt += `Acta de origen auditada: ${acta.codigo}\n`;
+  txt += `Fecha de publicación: ${sub.fecha_publicacion || sol.fecha_publicacion || fmtDate(acta.fecha_emision)}\n`;
+  txt += `Estado: Subsanado y Verificado\n\n`;
   txt += `${cont.descripcionIntroductoria || ''}\n\n`;
   (cont.secciones || []).forEach(sec => {
     txt += `${sec.label}\n#\tHallazgo\tAcción\n`;
@@ -466,19 +532,19 @@ function generarTextoPlanoSolucionario(sol, acta) {
   if (cont.credenciales) {
     txt += `${cont.credenciales.titulo}\nUsuario: ${cont.credenciales.usuario}\nContraseña: ${cont.credenciales.password}\n${cont.credenciales.nota}\n\n`;
   }
-  txt += `Fecha de publicación: ${sol.fecha_publicacion || fmtDate(acta.fecha_emision)}`;
   return txt;
 }
 
 function renderPanelSolucionario(a) {
-  const sol = obtenerSolucionarioActa(a);
+  const sub = obtenerSubActa(a);
+  const sol = sub;
   const cont = sol.contenido || sol;
-  const fechaPub = sol.fecha_publicacion || fmtDate(a.fecha_emision);
+  const fechaPub = sub.fecha_publicacion || sol.fecha_publicacion || fmtDate(a.fecha_emision);
   const cfg = TIPOS_CONFIG[a.tipo] || TIPOS_CONFIG.seguridad;
 
   return `
     <div class="p-4 sm:p-6 bg-white rounded-2xl border border-gray-200/90 shadow-lg space-y-4 my-2 mx-2">
-      <!-- Encabezado del Solucionario -->
+      <!-- Encabezado del Solucionario / Sub-Acta -->
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-gray-100">
         <div class="flex items-center gap-3">
           <span class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 shadow-sm">
@@ -486,16 +552,41 @@ function renderPanelSolucionario(a) {
           </span>
           <div>
             <div class="flex items-center gap-2 flex-wrap">
-              <h4 class="font-bold text-gray-900 text-base">Resumen de lo Corregido</h4>
+              <h4 class="font-bold text-gray-900 text-base">Sub-Acta de Solucionado</h4>
+              <span class="font-mono text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-2xs">
+                ${esc(sub.codigo)}
+              </span>
               <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${cfg.badgeCls}">${cfg.label}</span>
-              <span class="font-mono text-xs text-gray-500 font-semibold">#${esc(a.codigo)}</span>
+              <span class="text-xs text-gray-500 font-medium">Ref: Acta #${esc(a.codigo)}</span>
             </div>
-            <p class="text-xs text-gray-500 mt-0.5">Solucionario de auditoría técnica verificado directamente sobre el código fuente</p>
+            <p class="text-xs text-gray-500 mt-0.5">Resolución técnica oficial y solucionario verificado directamente sobre el código fuente</p>
           </div>
         </div>
 
-        <!-- Al costado de la visualización: Selector de plantillas y Fecha de Publicación -->
+        <!-- Acciones del Sub-Acta, Selector de plantillas y Fecha de Publicación -->
         <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+          <!-- Ver documento oficial A4 de Sub-Acta -->
+          <button
+            type="button"
+            data-action="ver-subacta"
+            data-id="${a.id}"
+            class="btn-primary text-xs py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1.5 shadow-sm font-semibold"
+            title="Ver documento oficial en hoja A4 con membrete institucional"
+          >
+            ${icon('visibility', 14)} Ver Sub-Acta
+          </button>
+
+          <!-- Descargar Word de Sub-Acta -->
+          <button
+            type="button"
+            data-action="word-subacta"
+            data-id="${a.id}"
+            class="btn-secondary text-xs py-1.5 px-3 text-blue-700 border-blue-200 hover:bg-blue-50 inline-flex items-center gap-1.5 shadow-sm font-medium"
+            title="Descargar Sub-Acta en formato Word (.doc)"
+          >
+            ${icon('file_download', 14)} Word (.doc)
+          </button>
+
           <!-- Selector de Plantillas -->
           <div class="flex items-center gap-1 bg-gray-100/90 p-1 rounded-xl text-xs font-medium border border-gray-200/60">
             <span class="text-gray-500 px-2 flex items-center gap-1 font-semibold text-[11px]">
@@ -506,7 +597,7 @@ function renderPanelSolucionario(a) {
               data-action="cambiar-plantilla-sol"
               data-id="${a.id}"
               data-plantilla="seguridad"
-              class="px-2.5 py-1 rounded-lg transition-all ${sol.plantilla_id === 'seguridad' || (!sol.plantilla_id && a.tipo === 'seguridad') ? 'bg-white text-indigo-700 shadow-sm font-bold' : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'}"
+              class="px-2.5 py-1 rounded-lg transition-all ${sub.plantilla_id === 'seguridad' || (!sub.plantilla_id && a.tipo === 'seguridad') ? 'bg-white text-indigo-700 shadow-sm font-bold' : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'}"
               title="Cargar plantilla de Seguridad Web + API"
             >
               Seguridad
@@ -516,7 +607,7 @@ function renderPanelSolucionario(a) {
               data-action="cambiar-plantilla-sol"
               data-id="${a.id}"
               data-plantilla="calidad"
-              class="px-2.5 py-1 rounded-lg transition-all ${sol.plantilla_id === 'calidad' || (!sol.plantilla_id && a.tipo === 'calidad') ? 'bg-white text-emerald-700 shadow-sm font-bold' : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'}"
+              class="px-2.5 py-1 rounded-lg transition-all ${sub.plantilla_id === 'calidad' || (!sub.plantilla_id && a.tipo === 'calidad') ? 'bg-white text-emerald-700 shadow-sm font-bold' : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'}"
               title="Cargar plantilla de Calidad & Refactorización"
             >
               Calidad
@@ -526,7 +617,7 @@ function renderPanelSolucionario(a) {
               data-action="cambiar-plantilla-sol"
               data-id="${a.id}"
               data-plantilla="reglas"
-              class="px-2.5 py-1 rounded-lg transition-all ${sol.plantilla_id === 'reglas' || (!sol.plantilla_id && a.tipo === 'reglas') ? 'bg-white text-purple-700 shadow-sm font-bold' : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'}"
+              class="px-2.5 py-1 rounded-lg transition-all ${sub.plantilla_id === 'reglas' || (!sub.plantilla_id && a.tipo === 'reglas') ? 'bg-white text-purple-700 shadow-sm font-bold' : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'}"
               title="Cargar plantilla de Reglas de Negocio"
             >
               Reglas
@@ -1027,8 +1118,8 @@ function renderFilaActa(a) {
 
   return `
     <tr class="hover:bg-blue-50/40 transition-colors ${estaAbierto ? 'bg-emerald-50/20' : ''}">
-      <td class="px-4 py-3.5 font-mono font-semibold text-primary-700">
-        <a href="javascript:void(0)" data-action="ver" data-id="${a.id}" class="hover:underline flex items-center gap-1.5">
+      <td class="px-4 py-3.5 font-mono font-semibold text-primary-700 whitespace-nowrap">
+        <a href="javascript:void(0)" data-action="ver" data-id="${a.id}" class="hover:underline inline-flex items-center gap-1.5 whitespace-nowrap">
           ${icon('description', 16)} ${esc(a.codigo)}
         </a>
       </td>
@@ -1042,7 +1133,7 @@ function renderFilaActa(a) {
           <div class="space-y-1">
             <div class="flex flex-wrap gap-1 items-center">
               ${a.datos.proyectos.map(p => `
-                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-900 border border-blue-200 text-xs font-semibold" title="${esc(p.name)} (${esc(p.code || 'S/C')})">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-900 border border-blue-200 text-xs font-semibold whitespace-nowrap" title="${esc(p.name)} (${esc(p.code || 'S/C')})">
                   ${esc(p.name)} <span class="font-mono text-[10px] text-blue-500 font-normal">(${esc(p.code || 'S/C')})</span>
                 </span>
               `).join('')}
