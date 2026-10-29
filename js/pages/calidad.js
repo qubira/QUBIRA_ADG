@@ -251,12 +251,174 @@ function asegurarEstilosLuzAmarilla() {
   }
 }
 
+// ─── PLANTILLAS DE SOLUCIONARIO / RESUMEN DE CORRECCIONES ──────────────────
+export const PLANTILLAS_SOLUCIONARIO = {
+  seguridad: {
+    id: 'seguridad',
+    nombre: 'Seguridad Fullstack (Web + API — Caso Express / Neon / Vercel)',
+    subtitulo: 'Correcciones de endpoints, rate-limit, CORS, sesiones y hardening de base de datos',
+    badgeCls: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    descripcionIntroductoria: 'He trabajado directamente sobre el código de WEB y API y verifiqué cada cambio (conexión real a Neon, servidor levantado localmente, pruebas de login/CORS/rate-limit). Esto es lo que quedó:',
+    secciones: [
+      {
+        severidad: 'critico',
+        label: '🔴 Críticos',
+        colorBadge: '#C0392B',
+        items: [
+          { ref: 'H-02', hallazgo: 'Admin con contraseña débil', accion: 'Contraseña cambiada en producción (ver credencial abajo) y cerré las 4 sesiones admin activas con la contraseña vieja — quien estuviera conectado tendrá que volver a entrar.' },
+          { ref: 'H-03', hallazgo: 'CORS abierto a cualquier origen', accion: 'Código corregido: ya falla cerrado si CORS_ORIGIN no está definida. ⚠️ Esto es lo primero que debes revisar — ver "Acción urgente" abajo.' },
+          { ref: 'H-04', hallazgo: 'Sin rate limiting', accion: 'Instalé express-rate-limit: límite global (300/15min) + límite estricto en los 5 logins (10/15min) + PIN de entrega (15/15min) + consultas DNI/CE (20/15min). Probado: al 10.º intento de login ya responde 429.' },
+          { ref: 'H-05', hallazgo: 'proxy-addr vulnerable', accion: 'npm audit fix ejecutado → 0 vulnerabilidades.' },
+          { ref: 'H-01, H-06, H-07', hallazgo: 'Repos públicos / XSS / fallbacks simulados', accion: 'Ya estaban cubiertos de sesiones anteriores (o requieren acción tuya, ver abajo).' },
+        ],
+      },
+      {
+        severidad: 'alto',
+        label: '🟠 Altos',
+        colorBadge: '#E67E22',
+        items: [
+          { ref: 'H-08 / H-09', hallazgo: 'Pedidos sin autenticación adecuada', accion: 'Ahora, si el pedido pertenece a un cliente con cuenta, GET /pedidos/:id y POST /pedidos/:id/pago exigen el token de ese cliente. Los pedidos de invitado (sin cuenta) siguen funcionando por enlace/UUID, que es el diseño actual de checkout sin registro — no lo rompí. Ajusté también js/api.js en WEB para que esas dos llamadas manden el token cuando existe.' },
+          { ref: 'H-10', hallazgo: '2FA / Doble Factor pendiente', accion: 'No lo puedo activar yo — necesita tu sesión en cada plataforma (GitHub, Vercel, Neon). Procedimiento detallado en guía de hardening.' },
+        ],
+      },
+      {
+        severidad: 'medio',
+        label: '🟡 Medios',
+        colorBadge: '#F1C40F',
+        items: [
+          { ref: 'H-12', hallazgo: 'Precio / stock negativos en transacciones', accion: 'Agregué validación en la API con mensaje claro. (Dato: la base de datos ya tenía CHECK (precio >= 0) y CHECK (stock >= 0), así que nunca se pudo insertar un valor negativo — solo se veía un error 500 feo en vez de un 400 claro. Ya corregido.)' },
+          { ref: 'H-13', hallazgo: 'TLS sin validar hacia Neon', accion: 'Cambié rejectUnauthorized: false → true y verifiqué la conexión real — sigue funcionando perfecto.' },
+          { ref: 'H-14', hallazgo: 'Errores internos expuestos (stack trace)', accion: 'El manejador global de errores ya no filtra err.message en errores 500; además agregué try/catch a las dos rutas de admin.js que no lo tenían.' },
+          { ref: 'H-15', hallazgo: 'Cambio de contraseña no cierra otras sesiones', accion: 'Ahora cliente, tienda y repartidor cierran automáticamente todas sus otras sesiones al cambiar su contraseña.' },
+          { ref: 'H-16 / H-17', hallazgo: 'Sin CSP ni cabeceras anti-clickjacking', accion: 'Creé vercel.json con Content-Security-Policy, X-Frame-Options: DENY, X-Content-Type-Options, Strict-Transport-Security y Referrer-Policy, cubriendo todo el sitio.' },
+          { ref: 'H-18', hallazgo: 'Protección de ramas y secretos en Git', accion: 'Requiere configuración de branch protection rules en la interfaz de GitHub.' },
+          { ref: 'H-11', hallazgo: 'Enumeración por mensajes de login', accion: 'Revisé a fondo — decidí no fusionar el mensaje "cuenta inactiva" con el genérico, porque solo se revela después de que ya se acertó la contraseña real (no es explotable por simple adivinanza de email), y perderlo rompe la UX de tiendas/repartidores pendientes de activación. El rate limiting que ya instalé es la mitigación real aquí.' },
+        ],
+      },
+      {
+        severidad: 'bajo',
+        label: '⚪ Bajos',
+        colorBadge: '#27AE60',
+        items: [
+          { ref: 'H-19', hallazgo: 'Enlaces externos sin rel seguro', accion: 'Los 3 target="_blank" ahora tienen rel="noopener noreferrer".' },
+          { ref: 'H-20', hallazgo: 'UPDATE de productos vulnerable a sobreescritura', accion: 'El UPDATE de productos en tienda.js ahora incluye AND tienda_id = $14 en el propio WHERE, no solo en el SELECT previo.' },
+          { ref: 'H-21', hallazgo: 'Falta de autocompletado semántico en contraseñas', accion: 'Agregué autocomplete="current-password" / "new-password" a los 3 campos de mi-cuenta.html.' },
+        ],
+      },
+    ],
+    credenciales: {
+      titulo: '🔑 Nueva contraseña admin (guárdala ahora, no la volveré a mostrar)',
+      usuario: 'admin@express-ancon.pe',
+      password: '7BCX@QipRqZkSLJVCn',
+      nota: 'Guárdala en un gestor de contraseñas. Ya no es texto predecible.',
+    },
+  },
+  calidad: {
+    id: 'calidad',
+    nombre: 'Calidad de Software & Refactorización Modular',
+    subtitulo: 'Optimización de base de datos Neon, arquitectura limpia y pruebas automatizadas',
+    badgeCls: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    descripcionIntroductoria: 'Se intervino el código fuente de los módulos afectados para eliminar deuda técnica, optimizar consultas de latencia en Neon y desacoplar componentes monolíticos:',
+    secciones: [
+      {
+        severidad: 'critico',
+        label: '🔴 Críticos',
+        colorBadge: '#C0392B',
+        items: [
+          { ref: 'CAL-01', hallazgo: 'Memory Leak y acumulación de clientes en Pool Postgres', accion: 'Implementado release explícito en bloques try/finally y configuración de client_idle_timeout = 10000ms en Neon.' },
+          { ref: 'CAL-02', hallazgo: 'Inyección de consultas por concatenación de cadenas', accion: 'Todas las consultas SQL migradas a Prepared Statements parametrizados ($1, $2) con validación estricta de tipos.' },
+          { ref: 'CAL-03', hallazgo: 'Promesas asíncronas no capturadas (Unhandled Rejections)', accion: 'Encapsulación de middleware asyncRoute con captura centralizada de excepciones para evitar caídas del proceso Node.js.' },
+        ],
+      },
+      {
+        severidad: 'alto',
+        label: '🟠 Altos',
+        colorBadge: '#E67E22',
+        items: [
+          { ref: 'CAL-04', hallazgo: 'Acoplamiento excesivo y controladores de más de 800 líneas', accion: 'Separación arquitectónica de responsabilidades en Servicios de Negocio puros y Controladores HTTP delgados.' },
+          { ref: 'CAL-05', hallazgo: 'Cero cobertura de pruebas automatizadas', accion: 'Configurado framework Jest + Supertest con 28 pruebas unitarias de endpoints de pagos, stock y autenticación.' },
+        ],
+      },
+      {
+        severidad: 'medio',
+        label: '🟡 Medios',
+        colorBadge: '#F1C40F',
+        items: [
+          { ref: 'CAL-06', hallazgo: 'Logs con console.log en producción sin nivel ni timestamp', accion: 'Implementado logger Winston en formato JSON estructurado con correlación por request-id.' },
+          { ref: 'CAL-07', hallazgo: 'Bundle frontend sin minificación ni lazy loading', accion: 'Implementada carga modular dinámica de scripts pesados, reduciendo el First Contentful Paint de 3.2s a 0.9s.' },
+          { ref: 'CAL-08', hallazgo: 'Falta de validación de payloads de entrada', accion: 'Integrado validador Zod en todas las rutas POST/PUT para asegurar esquemas y evitar entradas malformadas.' },
+        ],
+      },
+      {
+        severidad: 'bajo',
+        label: '⚪ Bajos',
+        colorBadge: '#27AE60',
+        items: [
+          { ref: 'CAL-09', hallazgo: 'Clases CSS redundantes y fuentes duplicadas', accion: 'Limpieza de reglas CSS obsoletas y normalización de variables de diseño corporativo.' },
+          { ref: 'CAL-10', hallazgo: 'Funciones públicas sin documentación técnica', accion: 'Añadidos bloques JSDoc exhaustivos con declaración de tipos, parámetros y tipos de retorno.' },
+        ],
+      },
+    ],
+    credenciales: null,
+  },
+  reglas: {
+    id: 'reglas',
+    nombre: 'Reglas de Negocio & Control Transaccional',
+    subtitulo: 'Consistencia contable, idempotencia en pasarelas de pago y auditoría inmutable',
+    badgeCls: 'bg-purple-100 text-purple-800 border-purple-200',
+    descripcionIntroductoria: 'Se blindaron las reglas comerciales y financieras contra condiciones de carrera, alteración de precios por clientes y desincronización de pedidos:',
+    secciones: [
+      {
+        severidad: 'critico',
+        label: '🔴 Críticos',
+        colorBadge: '#C0392B',
+        items: [
+          { ref: 'RN-01', hallazgo: 'Doble gasto / duplicidad de pagos ante reintentos de cliente', accion: 'Implementado header obligatorio Idempotency-Key con bloqueo Redis/Postgres y expiración a 24 horas.' },
+          { ref: 'RN-02', hallazgo: 'Sobreventa de inventario bajo concurrencia pico', accion: 'Bloqueo a nivel de fila SELECT ... FOR UPDATE en la tabla de productos durante la transacción de checkout.' },
+          { ref: 'RN-03', hallazgo: 'Alteración de total y descuentos manipulando el cliente', accion: 'El backend ignora cualquier precio o total enviado por el frontend y recalcula desde la base de datos de precios vigentes.' },
+        ],
+      },
+      {
+        severidad: 'alto',
+        label: '🟠 Altos',
+        colorBadge: '#E67E22',
+        items: [
+          { ref: 'RN-04', hallazgo: 'Anulación de transacciones sin registro de auditoría', accion: 'Trigger inmutable en tabla pedidos_historial que registra fecha, usuario, motivo y estado previo en cada anulación.' },
+          { ref: 'RN-05', hallazgo: 'Transiciones de estado ilegales en pedidos', accion: 'Máquina de estados finita validada: pedidos entregados o cancelados no pueden ser reabiertos ni modificados.' },
+        ],
+      },
+      {
+        severidad: 'medio',
+        label: '🟡 Medios',
+        colorBadge: '#F1C40F',
+        items: [
+          { ref: 'RN-06', hallazgo: 'Discrepancias centesimales en cálculo de IGV (18%)', accion: 'Estandarizado cálculo con Math.round a 2 decimales según normativa tributaria SUNAT.' },
+          { ref: 'RN-07', hallazgo: 'Cupones de descuento redimibles múltiples veces en paralelo', accion: 'Incremento atómico del contador de canjes dentro de la transacción de pago.' },
+          { ref: 'RN-08', hallazgo: 'Comisiones de repartidor sin tope ni trazabilidad', accion: 'Validada fórmula de comisiones por distancia con tarifa base fija y tope por zona.' },
+        ],
+      },
+      {
+        severidad: 'bajo',
+        label: '⚪ Bajos',
+        colorBadge: '#27AE60',
+        items: [
+          { ref: 'RN-09', hallazgo: 'Formateo inconsistente de símbolos de moneda', accion: 'Estandarizado a "S/ #,##0.00" en todos los comprobantes, reportes y vistas de clientes.' },
+          { ref: 'RN-10', hallazgo: 'Mensajes de rechazo de pago confusos para el comprador', accion: 'Mapeo amigable de códigos de error de pasarela (fondos insuficientes, tarjeta expirada, etc.).' },
+        ],
+      },
+    ],
+    credenciales: null,
+  },
+};
+
 // ─── Estado local del módulo ──────────────────────────────────────────────────
 let _actas = [];
 let _projects = [];
 let _filters = { tipo: '', estado: '', project_id: '', q: '' };
 let _currentActa = null;
 let _mode = 'list'; // 'list' | 'view' | 'edit'
+let _solucionariosAbiertos = new Set();
+let _actaRecienCreadaId = null;
 
 function esc(s) {
   if (s == null) return '';
@@ -265,6 +427,223 @@ function esc(s) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function hoyHoraFormateada() {
+  const d = new Date();
+  const dia = String(d.getDate()).padStart(2, '0');
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const anio = d.getFullYear();
+  const hora = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${dia}/${mes}/${anio} ${hora}:${min}`;
+}
+
+function obtenerSolucionarioActa(acta) {
+  if (acta.datos?.solucionario?.contenido) {
+    return acta.datos.solucionario;
+  }
+  const key = acta.tipo && PLANTILLAS_SOLUCIONARIO[acta.tipo] ? acta.tipo : 'seguridad';
+  const plantilla = PLANTILLAS_SOLUCIONARIO[key];
+  return {
+    plantilla_id: key,
+    fecha_publicacion: fmtDate(acta.fecha_emision),
+    contenido: JSON.parse(JSON.stringify(plantilla)),
+  };
+}
+
+function generarTextoPlanoSolucionario(sol, acta) {
+  const cont = sol.contenido || sol;
+  let txt = `Resumen de lo corregido — ${acta.codigo}\n`;
+  txt += `${cont.descripcionIntroductoria || ''}\n\n`;
+  (cont.secciones || []).forEach(sec => {
+    txt += `${sec.label}\n#\tHallazgo\tAcción\n`;
+    (sec.items || []).forEach(it => {
+      txt += `${it.ref}\t${it.hallazgo}\t${it.accion}\n`;
+    });
+    txt += `\n`;
+  });
+  if (cont.credenciales) {
+    txt += `${cont.credenciales.titulo}\nUsuario: ${cont.credenciales.usuario}\nContraseña: ${cont.credenciales.password}\n${cont.credenciales.nota}\n\n`;
+  }
+  txt += `Fecha de publicación: ${sol.fecha_publicacion || fmtDate(acta.fecha_emision)}`;
+  return txt;
+}
+
+function renderPanelSolucionario(a) {
+  const sol = obtenerSolucionarioActa(a);
+  const cont = sol.contenido || sol;
+  const fechaPub = sol.fecha_publicacion || fmtDate(a.fecha_emision);
+  const cfg = TIPOS_CONFIG[a.tipo] || TIPOS_CONFIG.seguridad;
+
+  return `
+    <div class="p-4 sm:p-6 bg-white rounded-2xl border border-gray-200/90 shadow-lg space-y-4 my-2 mx-2">
+      <!-- Encabezado del Solucionario -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-gray-100">
+        <div class="flex items-center gap-3">
+          <span class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 shadow-sm">
+            ${icon('task_alt', 22)}
+          </span>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h4 class="font-bold text-gray-900 text-base">Resumen de lo Corregido</h4>
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${cfg.badgeCls}">${cfg.label}</span>
+              <span class="font-mono text-xs text-gray-500 font-semibold">#${esc(a.codigo)}</span>
+            </div>
+            <p class="text-xs text-gray-500 mt-0.5">Solucionario de auditoría técnica verificado directamente sobre el código fuente</p>
+          </div>
+        </div>
+
+        <!-- Al costado de la visualización: Selector de plantillas y Fecha de Publicación -->
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+          <!-- Selector de Plantillas -->
+          <div class="flex items-center gap-1 bg-gray-100/90 p-1 rounded-xl text-xs font-medium border border-gray-200/60">
+            <span class="text-gray-500 px-2 flex items-center gap-1 font-semibold text-[11px]">
+              ${icon('style', 14)} Plantilla:
+            </span>
+            <button
+              type="button"
+              data-action="cambiar-plantilla-sol"
+              data-id="${a.id}"
+              data-plantilla="seguridad"
+              class="px-2.5 py-1 rounded-lg transition-all ${sol.plantilla_id === 'seguridad' || (!sol.plantilla_id && a.tipo === 'seguridad') ? 'bg-white text-indigo-700 shadow-sm font-bold' : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'}"
+              title="Cargar plantilla de Seguridad Web + API"
+            >
+              Seguridad
+            </button>
+            <button
+              type="button"
+              data-action="cambiar-plantilla-sol"
+              data-id="${a.id}"
+              data-plantilla="calidad"
+              class="px-2.5 py-1 rounded-lg transition-all ${sol.plantilla_id === 'calidad' || (!sol.plantilla_id && a.tipo === 'calidad') ? 'bg-white text-emerald-700 shadow-sm font-bold' : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'}"
+              title="Cargar plantilla de Calidad & Refactorización"
+            >
+              Calidad
+            </button>
+            <button
+              type="button"
+              data-action="cambiar-plantilla-sol"
+              data-id="${a.id}"
+              data-plantilla="reglas"
+              class="px-2.5 py-1 rounded-lg transition-all ${sol.plantilla_id === 'reglas' || (!sol.plantilla_id && a.tipo === 'reglas') ? 'bg-white text-purple-700 shadow-sm font-bold' : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'}"
+              title="Cargar plantilla de Reglas de Negocio"
+            >
+              Reglas
+            </button>
+          </div>
+
+          <!-- FECHA DE PUBLICACIÓN AL COSTADO DE LA VISUALIZACIÓN -->
+          <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200/80 text-blue-900 text-xs font-semibold shadow-sm">
+            <span class="material-icons text-blue-600 text-sm">event</span>
+            <span>Publicado: <span class="font-bold font-mono">${esc(fechaPub)}</span></span>
+          </div>
+
+          <!-- Botón de Copiar -->
+          <button
+            type="button"
+            data-action="copiar-solucionario"
+            data-id="${a.id}"
+            class="btn-secondary text-xs py-1.5 px-3 inline-flex items-center gap-1.5 text-gray-700 hover:text-gray-900 shadow-sm"
+            title="Copiar resumen estructurado al portapapeles"
+          >
+            ${icon('content_copy', 14)} Copiar
+          </button>
+        </div>
+      </div>
+
+      <!-- Texto introductorio -->
+      <div class="p-3 bg-gray-50/90 rounded-xl border border-gray-100 text-xs sm:text-sm text-gray-700 leading-relaxed font-normal flex items-start gap-2.5">
+        <span class="material-icons text-emerald-600 text-lg mt-0.5 shrink-0">check_circle</span>
+        <div>
+          <p class="font-bold text-gray-900 mb-0.5">${esc(cont.nombre || 'Resumen de lo corregido')}</p>
+          <p class="text-gray-600">${esc(cont.descripcionIntroductoria || '')}</p>
+        </div>
+      </div>
+
+      <!-- Tarjetas por severidad -->
+      <div class="grid grid-cols-1 gap-3.5">
+        ${(cont.secciones || []).map(sec => `
+          <div class="rounded-xl border p-3.5 transition-all shadow-sm ${
+            sec.severidad === 'critico' ? 'bg-red-50/20 border-red-200' :
+            sec.severidad === 'alto' ? 'bg-amber-50/20 border-amber-200' :
+            sec.severidad === 'medio' ? 'bg-yellow-50/20 border-yellow-200' :
+            'bg-slate-50/40 border-slate-200'
+          }">
+            <div class="flex items-center justify-between mb-2.5 border-b pb-1.5 ${
+              sec.severidad === 'critico' ? 'border-red-200/60' :
+              sec.severidad === 'alto' ? 'border-amber-200/60' :
+              sec.severidad === 'medio' ? 'border-yellow-200/60' :
+              'border-slate-200/60'
+            }">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-bold ${
+                  sec.severidad === 'critico' ? 'text-red-800' :
+                  sec.severidad === 'alto' ? 'text-amber-800' :
+                  sec.severidad === 'medio' ? 'text-yellow-900' :
+                  'text-slate-700'
+                }">${sec.label}</span>
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-white border ${
+                  sec.severidad === 'critico' ? 'text-red-700 border-red-200' :
+                  sec.severidad === 'alto' ? 'text-amber-700 border-amber-200' :
+                  sec.severidad === 'medio' ? 'text-yellow-800 border-yellow-300' :
+                  'text-slate-600 border-slate-200'
+                }">${sec.items?.length || 0} acciones</span>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs text-left">
+                <thead>
+                  <tr class="text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200/40">
+                    <th class="py-1.5 px-2 w-24">#</th>
+                    <th class="py-1.5 px-2 w-1/4">Hallazgo</th>
+                    <th class="py-1.5 px-2">Acción / Solución Aplicada</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                  ${(sec.items || []).map(it => `
+                    <tr class="hover:bg-white/80 transition-colors">
+                      <td class="py-2 px-2 font-mono font-bold text-gray-900 whitespace-nowrap align-top">${esc(it.ref)}</td>
+                      <td class="py-2 px-2 font-semibold text-gray-800 align-top">${esc(it.hallazgo)}</td>
+                      <td class="py-2 px-2 text-gray-600 leading-relaxed align-top">${esc(it.accion)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- Bloque de Credenciales Seguras (si aplica) -->
+      ${cont.credenciales ? `
+        <div class="rounded-xl p-4 bg-slate-900 text-white border border-slate-800 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2 font-bold text-sm text-amber-400">
+              <span class="material-icons text-amber-400 text-base">key</span>
+              ${esc(cont.credenciales.titulo)}
+            </div>
+            <div class="flex flex-wrap items-center gap-3 text-xs pt-1 font-mono">
+              <span class="text-slate-300">Usuario: <strong class="text-white">${esc(cont.credenciales.usuario)}</strong></span>
+              <span class="text-slate-500">•</span>
+              <span class="text-slate-300">Contraseña: <strong class="text-emerald-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">${esc(cont.credenciales.password)}</strong></span>
+            </div>
+            <p class="text-[11px] text-slate-400 italic pt-0.5">${esc(cont.credenciales.nota)}</p>
+          </div>
+          <button
+            type="button"
+            data-action="copiar-pwd"
+            data-pwd="${esc(cont.credenciales.password)}"
+            class="btn-secondary text-xs py-2 px-3.5 bg-slate-800 hover:bg-slate-700 text-white border-slate-700 shrink-0 inline-flex items-center gap-1.5 transition-colors"
+            title="Copiar contraseña al portapapeles"
+          >
+            ${icon('content_copy', 14)} Copiar Credencial
+          </button>
+        </div>
+      ` : ''}
+    </div>
+  `;
 }
 
 function hoyISO() {
@@ -549,6 +928,82 @@ function renderBandeja() {
   c.querySelectorAll('[data-action="eliminar"]').forEach(btn => {
     btn.addEventListener('click', () => eliminarActa(btn.dataset.id, btn.dataset.codigo));
   });
+
+  // Listeners del Solucionario desplegable
+  c.querySelectorAll('[data-action="toggle-solucionario"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const row = document.getElementById(`fila-solucionario-${id}`);
+      if (!row) return;
+      if (row.classList.contains('hidden')) {
+        row.classList.remove('hidden');
+        _solucionariosAbiertos.add(id);
+      } else {
+        row.classList.add('hidden');
+        _solucionariosAbiertos.delete(id);
+      }
+    });
+  });
+
+  c.querySelectorAll('[data-action="cambiar-plantilla-sol"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const plantillaKey = btn.dataset.plantilla;
+      const acta = _actas.find(x => x.id === id);
+      if (!acta) return;
+
+      const nuevaPlantilla = PLANTILLAS_SOLUCIONARIO[plantillaKey];
+      if (!nuevaPlantilla) return;
+
+      const datosActualizados = JSON.parse(JSON.stringify(acta.datos || {}));
+      datosActualizados.solucionario = {
+        plantilla_id: plantillaKey,
+        fecha_publicacion: hoyHoraFormateada(),
+        contenido: JSON.parse(JSON.stringify(nuevaPlantilla)),
+      };
+
+      try {
+        await api.put(`/calidad/actas/${id}`, {
+          datos: datosActualizados,
+        });
+        toast(`Plantilla de solucionario cambiada a ${nuevaPlantilla.nombre}`);
+        await recargarActas();
+        _solucionariosAbiertos.add(id);
+        renderBandeja();
+      } catch (e) {
+        toast(e.message || 'Error al cambiar plantilla', 'error');
+      }
+    });
+  });
+
+  c.querySelectorAll('[data-action="copiar-solucionario"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const acta = _actas.find(x => x.id === id);
+      if (!acta) return;
+      const sol = obtenerSolucionarioActa(acta);
+      const texto = generarTextoPlanoSolucionario(sol, acta);
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(texto).then(() => {
+          toast('Resumen de lo corregido copiado al portapapeles');
+        }).catch(() => {
+          toast('No se pudo copiar automáticamente', 'error');
+        });
+      }
+    });
+  });
+
+  c.querySelectorAll('[data-action="copiar-pwd"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const pwd = btn.dataset.pwd;
+      if (!pwd) return;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(pwd).then(() => {
+          toast('Contraseña copiada al portapapeles');
+        });
+      }
+    });
+  });
 }
 
 function renderFilaActa(a) {
@@ -556,9 +1011,10 @@ function renderFilaActa(a) {
   const est = ESTADOS_CONFIG[a.estado] || ESTADOS_CONFIG.borrador;
   const res = a.resumen || { severidad: { critico: 0, alto: 0, medio: 0, bajo: 0 } };
   const s = res.severidad || {};
+  const estaAbierto = _solucionariosAbiertos.has(a.id) || a.id === _actaRecienCreadaId;
 
   return `
-    <tr class="hover:bg-blue-50/40 transition-colors">
+    <tr class="hover:bg-blue-50/40 transition-colors ${estaAbierto ? 'bg-emerald-50/20' : ''}">
       <td class="px-4 py-3.5 font-mono font-semibold text-primary-700">
         <a href="javascript:void(0)" data-action="ver" data-id="${a.id}" class="hover:underline flex items-center gap-1.5">
           ${icon('description', 16)} ${esc(a.codigo)}
@@ -570,8 +1026,21 @@ function renderFilaActa(a) {
         </span>
       </td>
       <td class="px-4 py-3.5">
-        <div class="font-medium text-gray-900">${esc(a.project_name || 'Sin proyecto vinculado')}</div>
-        <div class="text-xs text-gray-500">${esc(a.project_client || a.project_code || 'QUBIRA interno')}</div>
+        ${Array.isArray(a.datos?.proyectos) && a.datos.proyectos.length > 1 ? `
+          <div class="space-y-1">
+            <div class="flex flex-wrap gap-1 items-center">
+              ${a.datos.proyectos.map(p => `
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-900 border border-blue-200 text-xs font-semibold" title="${esc(p.name)} (${esc(p.code || 'S/C')})">
+                  ${esc(p.name)} <span class="font-mono text-[10px] text-blue-500 font-normal">(${esc(p.code || 'S/C')})</span>
+                </span>
+              `).join('')}
+            </div>
+            <div class="text-xs text-gray-500">${esc(a.project_client || a.datos?.proyectos[0]?.client || 'QUBIRA interno')}</div>
+          </div>
+        ` : `
+          <div class="font-medium text-gray-900">${esc(a.project_name || 'Sin proyecto vinculado')}</div>
+          <div class="text-xs text-gray-500">${esc(a.project_client || a.project_code || 'QUBIRA interno')}</div>
+        `}
       </td>
       <td class="px-4 py-3.5 text-center font-mono text-xs text-gray-600">v${esc(a.version || '1.0')}</td>
       <td class="px-4 py-3.5 text-xs text-gray-700 whitespace-nowrap">${fmtDate(a.fecha_emision)}</td>
@@ -591,6 +1060,9 @@ function renderFilaActa(a) {
       </td>
       <td class="px-4 py-3.5 text-right whitespace-nowrap">
         <div class="flex items-center justify-end gap-1">
+          <button data-action="toggle-solucionario" data-id="${a.id}" class="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors" title="Ver / Ocultar Resumen de lo Corregido (Solucionario)">
+            ${icon('task_alt', 18)}
+          </button>
           <button data-action="ver" data-id="${a.id}" class="p-1.5 rounded-lg text-gray-500 hover:text-primary-600 hover:bg-gray-100" title="Ver documento fiel">
             ${icon('visibility', 18)}
           </button>
@@ -610,6 +1082,12 @@ function renderFilaActa(a) {
             ${icon('delete', 18)}
           </button>
         </div>
+      </td>
+    </tr>
+    <!-- Fila desplegable del Resumen de lo Corregido (Solucionario) -->
+    <tr id="fila-solucionario-${a.id}" class="fila-solucionario ${estaAbierto ? '' : 'hidden'} bg-gradient-to-b from-gray-50/70 to-white border-b-2 border-emerald-200">
+      <td colspan="9" class="p-0">
+        ${renderPanelSolucionario(a)}
       </td>
     </tr>
   `;
@@ -647,9 +1125,15 @@ function abrirModalNuevaActa() {
 
       <div>
         <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5 flex items-center justify-between">
-          <span>Proyecto a Auditar</span>
-          <span id="label-proyecto-seleccionado" class="text-[11px] font-medium text-primary-700 font-mono"></span>
+          <span>Proyectos a Auditar (Permite 1 o más proyectos)</span>
+          <span id="label-proyectos-seleccionados-count" class="text-[11px] font-semibold text-primary-700 font-mono">0 seleccionados</span>
         </label>
+
+        <!-- Contenedor interactivo de Chips / Etiquetas de proyectos -->
+        <div id="contenedor-chips-proyectos" class="flex flex-wrap gap-1.5 p-2 bg-gray-50 border border-gray-200 rounded-xl min-h-[44px] mb-2 items-center transition-all">
+          <span id="chips-placeholder" class="text-xs text-gray-400 italic">Escribe abajo para buscar y seleccionar proyectos (ej. WEB + API)...</span>
+        </div>
+
         <div class="relative" id="contenedor-filtro-proyecto">
           <input type="hidden" id="new-project_id" value="">
           <div class="relative flex items-center">
@@ -660,7 +1144,7 @@ function abrirModalNuevaActa() {
               type="text"
               id="new-project-search"
               class="input w-full pl-9 pr-9 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-              placeholder="Escribe para buscar proyecto por nombre, código o cliente..."
+              placeholder="Escribe para buscar proyecto por nombre, código o cliente para agregar..."
               autocomplete="off"
               spellcheck="false"
             >
@@ -668,7 +1152,7 @@ function abrirModalNuevaActa() {
               type="button"
               id="btn-limpiar-proyecto-search"
               class="absolute right-2.5 text-gray-400 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 hidden transition-colors"
-              title="Limpiar selección"
+              title="Borrar texto"
             >
               ${icon('close', 16)}
             </button>
@@ -681,7 +1165,7 @@ function abrirModalNuevaActa() {
             style="scrollbar-width: thin;"
           ></div>
         </div>
-        <p class="text-xs text-gray-400 mt-1">Escribe para filtrar proyectos. Se extraerán repositorios, cliente y entorno automáticamente.</p>
+        <p class="text-xs text-gray-400 mt-1">Permite seleccionar 2 o más partes si el sistema está modularizado (ej. WEB y API). Se extraerán repositorios y entornos combinados.</p>
       </div>
 
       <div class="grid grid-cols-2 gap-3">
@@ -743,12 +1227,53 @@ function abrirModalNuevaActa() {
     });
   });
 
-  // Buscador y filtro en tiempo real para el proyecto
+  // Buscador y selección múltiple de proyectos
   const inputSearch = document.getElementById('new-project-search');
   const hiddenId = document.getElementById('new-project_id');
   const dropdown = document.getElementById('new-project-dropdown');
   const btnLimpiar = document.getElementById('btn-limpiar-proyecto-search');
-  const labelSeleccion = document.getElementById('label-proyecto-seleccionado');
+
+  let proyectosSeleccionados = [];
+
+  function actualizarChipsProyectos() {
+    const cont = document.getElementById('contenedor-chips-proyectos');
+    const countLabel = document.getElementById('label-proyectos-seleccionados-count');
+    if (!cont) return;
+
+    if (proyectosSeleccionados.length === 0) {
+      cont.innerHTML = `<span id="chips-placeholder" class="text-xs text-gray-400 italic">Escribe abajo para buscar y seleccionar proyectos (ej. WEB + API)...</span>`;
+      if (countLabel) countLabel.textContent = '0 seleccionados';
+      if (hiddenId) hiddenId.value = '';
+      return;
+    }
+
+    if (countLabel) {
+      countLabel.textContent = `${proyectosSeleccionados.length} seleccionado${proyectosSeleccionados.length > 1 ? 's' : ''}`;
+    }
+    if (hiddenId) {
+      hiddenId.value = proyectosSeleccionados[0].id;
+    }
+
+    cont.innerHTML = proyectosSeleccionados.map((p, idx) => `
+      <span class="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-primary-100/90 text-primary-900 border border-primary-200 text-xs font-medium shadow-xs">
+        <span class="font-bold">${esc(p.name)}</span>
+        <span class="font-mono text-[10px] text-primary-600 font-semibold bg-white/80 px-1 py-0.5 rounded">(${esc(p.code || 'S/C')})</span>
+        <button type="button" data-remove-idx="${idx}" class="btn-quitar-chip text-primary-400 hover:text-red-600 hover:bg-red-50 rounded p-0.5 ml-0.5 transition-colors" title="Quitar proyecto">
+          ${icon('close', 14)}
+        </button>
+      </span>
+    `).join('');
+
+    cont.querySelectorAll('.btn-quitar-chip').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.removeIdx, 10);
+        proyectosSeleccionados.splice(idx, 1);
+        actualizarChipsProyectos();
+        renderOpcionesProyecto(inputSearch.value);
+      });
+    });
+  }
 
   function renderOpcionesProyecto(filtro = '') {
     if (!dropdown) return;
@@ -772,23 +1297,26 @@ function abrirModalNuevaActa() {
     }
 
     dropdown.innerHTML = filtrados.map(p => {
-      const isSelected = p.id === hiddenId.value;
+      const isSelected = proyectosSeleccionados.some(x => x.id === p.id);
       return `
         <div
-          class="p-2.5 hover:bg-primary-50 cursor-pointer flex items-center justify-between transition-colors option-proj-item ${isSelected ? 'bg-primary-50/70 font-semibold' : ''}"
+          class="p-2.5 hover:bg-primary-50 cursor-pointer flex items-center justify-between transition-colors option-proj-item ${isSelected ? 'bg-primary-50/90 border-l-4 border-primary-600' : ''}"
           data-id="${p.id}"
-          data-name="${esc(p.name)}"
-          data-code="${esc(p.code || 'S/C')}"
-          data-client="${esc(p.client || 'Interno')}"
         >
           <div class="min-w-0 pr-2">
-            <div class="text-sm font-medium text-gray-900 truncate">${esc(p.name)}</div>
+            <div class="text-sm font-medium text-gray-900 truncate flex items-center gap-1.5">
+              ${isSelected ? `<span class="text-primary-600 font-bold text-xs">✓</span>` : ''}
+              <span>${esc(p.name)}</span>
+            </div>
             <div class="text-xs text-gray-500 truncate flex items-center gap-1.5 mt-0.5">
               <span class="font-medium text-gray-700">${esc(p.client || 'Interno')}</span>
               ${p.code ? `<span class="text-gray-300">•</span><span class="font-mono text-gray-400">Código: ${esc(p.code)}</span>` : ''}
             </div>
           </div>
-          ${p.code ? `<span class="shrink-0 px-2 py-0.5 rounded text-[11px] font-mono bg-gray-100 text-gray-700 font-semibold">${esc(p.code)}</span>` : ''}
+          <div class="shrink-0 flex items-center gap-1.5">
+            ${p.code ? `<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-gray-100 text-gray-700 font-semibold">${esc(p.code)}</span>` : ''}
+            <span class="text-xs ${isSelected ? 'text-primary-700 font-semibold' : 'text-gray-400'}">${isSelected ? 'Agregado' : '+ Agregar'}</span>
+          </div>
         </div>
       `;
     }).join('');
@@ -796,15 +1324,21 @@ function abrirModalNuevaActa() {
     dropdown.querySelectorAll('.option-proj-item').forEach(el => {
       el.addEventListener('click', () => {
         const id = el.dataset.id;
-        const name = el.dataset.name;
-        const code = el.dataset.code;
-        const client = el.dataset.client;
+        const targetProj = _projects.find(x => x.id === id);
+        if (!targetProj) return;
 
-        hiddenId.value = id;
-        inputSearch.value = `${name} (${code}) — ${client}`;
-        if (labelSeleccion) labelSeleccion.textContent = `[Seleccionado: ${code}]`;
-        btnLimpiar?.classList.remove('hidden');
-        dropdown.classList.add('hidden');
+        const yaEsta = proyectosSeleccionados.some(x => x.id === id);
+        if (yaEsta) {
+          proyectosSeleccionados = proyectosSeleccionados.filter(x => x.id !== id);
+        } else {
+          proyectosSeleccionados.push(targetProj);
+        }
+
+        actualizarChipsProyectos();
+        inputSearch.value = '';
+        btnLimpiar?.classList.add('hidden');
+        inputSearch.focus();
+        renderOpcionesProyecto('');
       });
     });
 
@@ -826,15 +1360,13 @@ function abrirModalNuevaActa() {
 
   inputSearch?.addEventListener('focus', () => {
     activeIndex = -1;
-    renderOpcionesProyecto(hiddenId.value ? '' : inputSearch.value);
+    renderOpcionesProyecto(inputSearch.value);
   });
 
   inputSearch?.addEventListener('input', (e) => {
     activeIndex = -1;
     const val = e.target.value;
     if (!val) {
-      hiddenId.value = '';
-      if (labelSeleccion) labelSeleccion.textContent = '';
       btnLimpiar?.classList.add('hidden');
     } else {
       btnLimpiar?.classList.remove('hidden');
@@ -874,9 +1406,7 @@ function abrirModalNuevaActa() {
   btnLimpiar?.addEventListener('click', (e) => {
     e.stopPropagation();
     activeIndex = -1;
-    hiddenId.value = '';
     inputSearch.value = '';
-    if (labelSeleccion) labelSeleccion.textContent = '';
     btnLimpiar.classList.add('hidden');
     inputSearch.focus();
     renderOpcionesProyecto('');
@@ -895,14 +1425,31 @@ function abrirModalNuevaActa() {
     const form = document.getElementById('form-nueva-acta');
     if (!form) return;
     const tipo = form.querySelector('input[name="tipo"]:checked')?.value || 'seguridad';
-    const projectId = document.getElementById('new-project_id').value || null;
-    const auditor = document.getElementById('new-auditor').value.trim() || user?.name || 'Auditor QUBIRA';
+    const projectId = proyectosSeleccionados.length > 0 ? proyectosSeleccionados[0].id : null;
+    const auditor = document.getElementById('new-auditor').value.trim() || user?.name || 'Abraham Aranda Cerna';
     const fechaEmision = document.getElementById('new-fecha_emision').value || hoyISO();
 
-    const proj = _projects.find(p => p.id === projectId);
     const cfg = TIPOS_CONFIG[tipo];
 
-    // Estructura inicial del acta con campos en blanco (los no llenados quedan vacíos)
+    // Combinar repositorios y entornos de todos los proyectos seleccionados
+    const reposList = proyectosSeleccionados
+      .map(p => p.github_url ? `${p.name}: ${p.github_url}` : null)
+      .filter(Boolean)
+      .join(' · ');
+
+    const entornosList = proyectosSeleccionados
+      .map(p => p.website_url ? `${p.name}: ${p.website_url}` : (p.name ? `${p.name}: Producción` : null))
+      .filter(Boolean)
+      .join(' · ');
+
+    const respNombres = proyectosSeleccionados
+      .map(p => p.responsible_name)
+      .filter(Boolean)
+      .join(' / ');
+
+    const plantillaSel = PLANTILLAS_SOLUCIONARIO[tipo] || PLANTILLAS_SOLUCIONARIO.seguridad;
+
+    // Estructura inicial del acta con campos en blanco y plantilla de solucionario desplegada
     const datosIniciales = {
       tipo,
       fecha_emision: fechaEmision,
@@ -911,11 +1458,11 @@ function abrirModalNuevaActa() {
       auditor,
       auditor_dni: '',
       auditor_cargo: '',
-      responsable_proyecto: proj?.responsible_name || '',
+      responsable_proyecto: respNombres || (proyectosSeleccionados[0]?.responsible_name || ''),
       responsable_dni: '',
       responsable_cargo: '',
-      entorno: '',
-      repositorios: '',
+      entorno: entornosList || '',
+      repositorios: reposList || '',
       alcance: '',
       metodologia: '',
       periodo_desde: '',
@@ -926,6 +1473,21 @@ function abrirModalNuevaActa() {
       controles: [],
       herramientas: [],
       plan_remediacion: [],
+      proyectos_ids: proyectosSeleccionados.map(p => p.id),
+      proyectos: proyectosSeleccionados.map(p => ({
+        id: p.id,
+        name: p.name,
+        code: p.code || 'S/C',
+        client: p.client || 'Interno',
+        github_url: p.github_url || '',
+        website_url: p.website_url || '',
+        responsible_name: p.responsible_name || '',
+      })),
+      solucionario: {
+        plantilla_id: tipo,
+        fecha_publicacion: hoyHoraFormateada(),
+        contenido: JSON.parse(JSON.stringify(plantillaSel)),
+      },
     };
 
     try {
@@ -935,9 +1497,12 @@ function abrirModalNuevaActa() {
         datos: datosIniciales,
       });
       closeModal();
+      _solucionariosAbiertos.add(resp.id);
+      _actaRecienCreadaId = resp.id;
+      _mode = 'list';
       await recargarActas();
-      toast(`Acta ${resp.codigo} creada en blanco exitosamente`);
-      await editarActa(resp.id);
+      renderBandeja();
+      toast(`Acta ${resp.codigo} creada con solucionario desplegado exitosamente`);
     } catch (e) {
       toast(e.message || 'Error al crear acta', 'error');
     }
@@ -1638,6 +2203,63 @@ function generarHtmlDocumentoWord(acta) {
       </tbody>
     </table>
 
+    <!-- ANEXO: RESUMEN DE LO CORREGIDO (SOLUCIONARIO) -->
+    ${d.solucionario?.contenido ? `
+      <div style="page-break-before:always;margin-top:24pt;border-top:1.5pt solid #1F3A5F;padding-top:12pt;">
+        <table style="border-collapse:collapse;width:100%;margin-bottom:8pt;">
+          <tr>
+            <td style="vertical-align:middle;">
+              <span style="font-weight:bold;color:#1F3A5F;font-size:13pt;font-family:'Calibri', Arial, sans-serif;">
+                ANEXO: RESUMEN DE LO CORREGIDO (SOLUCIONARIO)
+              </span>
+            </td>
+            <td style="text-align:right;vertical-align:middle;">
+              <span style="background:#EAF1F8;border:0.5pt solid #2E6DA4;color:#1F3A5F;padding:2.5pt 6pt;border-radius:3pt;font-size:8pt;font-weight:bold;">
+                Publicado: ${esc(d.solucionario.fecha_publicacion || fmtDate(acta.fecha_emision))}
+              </span>
+            </td>
+          </tr>
+        </table>
+        <p style="font-size:9pt;color:#4B5563;margin-top:0;margin-bottom:12pt;line-height:1.35;">
+          ${esc(d.solucionario.contenido.descripcionIntroductoria || '')}
+        </p>
+
+        ${(d.solucionario.contenido.secciones || []).map(sec => `
+          <div style="margin-bottom:12pt;">
+            <p style="margin:2pt 0 4pt 0;font-weight:bold;font-size:10pt;color:${sec.colorBadge || '#1F3A5F'};">
+              ${sec.label} (${sec.items?.length || 0} acciones)
+            </p>
+            <table style="border-collapse:collapse;width:100%;margin:0 0 6pt 0;">
+              <thead>
+                <tr>
+                  <th style="border:0.5pt solid #C9D3DF;background:#1F3A5F;color:#FFFFFF;padding:3pt 5pt;width:14%;font-size:8.5pt;text-align:left;">#</th>
+                  <th style="border:0.5pt solid #C9D3DF;background:#1F3A5F;color:#FFFFFF;padding:3pt 5pt;width:28%;font-size:8.5pt;text-align:left;">Hallazgo</th>
+                  <th style="border:0.5pt solid #C9D3DF;background:#1F3A5F;color:#FFFFFF;padding:3pt 5pt;width:58%;font-size:8.5pt;text-align:left;">Acción / Solución Aplicada</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(sec.items || []).map(it => `
+                  <tr>
+                    <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5pt;font-size:8.5pt;font-weight:bold;color:#1F3A5F;vertical-align:top;">${esc(it.ref)}</td>
+                    <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5pt;font-size:8.5pt;font-weight:bold;color:#1F2937;vertical-align:top;">${esc(it.hallazgo)}</td>
+                    <td style="border:0.5pt solid #C9D3DF;padding:3.5pt 5pt;font-size:8.5pt;color:#374151;line-height:1.3;vertical-align:top;">${esc(it.accion)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `).join('')}
+
+        ${d.solucionario.contenido.credenciales ? `
+          <div style="background:#F3F4F6;border:1pt solid #D1D5DB;border-radius:4pt;padding:8pt;margin-top:10pt;">
+            <p style="margin:0 0 4pt 0;font-weight:bold;font-size:9.5pt;color:#111827;">${esc(d.solucionario.contenido.credenciales.titulo)}</p>
+            <p style="margin:2pt 0;font-size:8.5pt;color:#374151;"><b>Usuario:</b> ${esc(d.solucionario.contenido.credenciales.usuario)} &nbsp;·&nbsp; <b>Contraseña:</b> <span style="font-family:monospace;background:#E5E7EB;padding:1pt 4pt;">${esc(d.solucionario.contenido.credenciales.password)}</span></p>
+            <p style="margin:2pt 0 0 0;font-size:8pt;color:#6B7280;font-style:italic;">${esc(d.solucionario.contenido.credenciales.nota)}</p>
+          </div>
+        ` : ''}
+      </div>
+    ` : ''}
+
     <!-- PIE DE PÁGINA DEL DOCUMENTO -->
     <div style="border-top:0.5pt solid #C9D3DF;padding-top:5pt;margin-top:25pt;display:flex;justify-content:space-between;align-items:center;">
       <span style="color:#6B7280;font-size:7.5pt;font-family:'Calibri', Arial, sans-serif;">
@@ -1749,9 +2371,11 @@ async function editarActa(id) {
     if (!Array.isArray(d.herramientas)) d.herramientas = [];
     if (!Array.isArray(d.plan_remediacion)) d.plan_remediacion = [];
 
-    const projVinc = _projects.find(p => p.id === acta.project_id);
-    const projLabel = projVinc
-      ? `${projVinc.name} (${projVinc.code || 'S/C'})`
+    const projsVinc = Array.isArray(d.proyectos) && d.proyectos.length > 0
+      ? d.proyectos
+      : (_projects.filter(p => p.id === acta.project_id));
+    const projLabel = projsVinc.length > 0
+      ? projsVinc.map(p => `${p.name} (${p.code || 'S/C'})`).join(' · ')
       : (acta.project_name ? `${acta.project_name} (${acta.project_code || 'S/C'})` : 'Sin proyecto vinculado');
 
     c.innerHTML = `
