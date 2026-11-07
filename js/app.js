@@ -13,7 +13,7 @@ import { render as renderVisitas }     from './pages/visitas.js';
 import { render as renderCostoHerramientas } from './pages/costo-herramientas.js';
 import { render as renderInfoTecnico }       from './pages/info-tecnico.js?v=33';
 import { render as renderCalidad }           from './pages/calidad.js';
-import { render as renderQubiraWeb }         from './pages/qubira-web.js?v=39';
+import { render as renderQubiraWeb }         from './pages/qubira-web.js?v=40';
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 const exactRoutes = {};

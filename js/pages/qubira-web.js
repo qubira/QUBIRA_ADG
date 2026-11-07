@@ -265,6 +265,14 @@ function renderContentOnly() {
   wireActions();
 }
 
+// Botón para bloquear el enlace en la web pública o dejarlo de entrada libre
+function botonEnlace(p, extra = '') {
+  const bloqueado = !!p.web_link_locked;
+  return `<button class="toggle-link-btn px-2 py-0.5 rounded-full text-[11px] font-semibold inline-flex items-center gap-1 transition-colors ${bloqueado ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-sky-100 text-sky-800 hover:bg-sky-200'} ${extra}" data-id="${p.id}" data-locked="${bloqueado}" title="${bloqueado ? 'Enlace oculto en la web pública. Clic para dar entrada libre' : 'Cualquiera puede abrir el enlace. Clic para bloquearlo por privacidad'}">
+    ${icon(bloqueado ? 'lock' : 'lock_open', 12)} ${bloqueado ? 'Bloqueado' : 'Entrada libre'}
+  </button>`;
+}
+
 // ─── Vista Previa de Tarjetas Web (Estilo exacto de Imagen 2) ────────────────
 function renderPreviewGrid(items) {
   if (!items.length) {
@@ -340,6 +348,7 @@ function webCard(p) {
               <span>↗ Ver sitio</span>
               <span class="text-[11px] text-gray-400 truncate max-w-[160px]">(${esc(p.website_url.replace(/^https?:\/\//, ''))})</span>
             </a>
+            <div class="mt-2 text-center">${botonEnlace(p)}</div>
           ` : `
             <div class="w-full py-2 px-3 rounded-lg bg-gray-800/60 border border-dashed border-gray-700 text-gray-400 font-medium text-xs flex items-center justify-center gap-1.5">
               ${icon('link_off', 14)} Sin URL vinculada
@@ -416,6 +425,7 @@ function renderTableView(items) {
                       <a href="${esc(p.website_url)}" target="_blank" rel="noopener noreferrer" class="text-xs text-primary-600 hover:underline flex items-center gap-1 truncate max-w-[220px]">
                         ${icon('link', 14)} ${esc(p.website_url)}
                       </a>
+                      <div class="mt-1">${botonEnlace(p)}</div>
                     ` : `<span class="text-xs text-gray-400 italic">Sin URL</span>`}
                   </td>
                   <td class="py-3 px-4">
@@ -472,6 +482,23 @@ function wireActions() {
         load();
       } catch (err) {
         toast(err.message || 'Error al cambiar visibilidad', 'error');
+        btn.disabled = false;
+      }
+    });
+  });
+
+  // Bloquear enlace o dejarlo de entrada libre
+  document.querySelectorAll('.toggle-link-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.preventDefault();
+      const bloquear = btn.dataset.locked !== 'true';
+      try {
+        btn.disabled = true;
+        await saveWebStatus(btn.dataset.id, { web_link_locked: bloquear });
+        toast(bloquear ? 'Enlace bloqueado en la web pública' : 'Enlace con entrada libre');
+        load();
+      } catch (err) {
+        toast(err.message || 'Error al cambiar el enlace', 'error');
         btn.disabled = false;
       }
     });
