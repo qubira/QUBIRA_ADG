@@ -16,6 +16,8 @@ function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
+const saveWebStatus = (id, body) => (api.patch ? api.patch(`/projects/${id}/web-status`, body) : api.put(`/projects/${id}/web-status`, body));
+
 export function render() {
   const main = document.getElementById('main');
   main.innerHTML = `<div class="p-6 max-w-7xl mx-auto" id="qubira-web-page">${spinner()}</div>`;
@@ -417,7 +419,7 @@ function wireActions() {
 
       try {
         btn.disabled = true;
-        await api.patch(`/projects/${id}/web-status`, { show_on_web: targetState });
+        await saveWebStatus(id, { show_on_web: targetState });
         toast(targetState ? `Proyecto "${p?.name}" publicado en la Web` : `Proyecto "${p?.name}" despublicado de la Web`);
         load();
       } catch (err) {
@@ -582,7 +584,7 @@ function openPublishModal() {
       saveBtn.disabled = true;
       saveBtn.innerHTML = `${icon('sync', 16)} Guardando...`;
 
-      await api.patch(`/projects/${projId}/web-status`, {
+      await saveWebStatus(projId, {
         show_on_web: true,
         website_url,
         web_metric,
@@ -692,7 +694,7 @@ function openEditWebModal(p) {
       saveBtn.disabled = true;
       saveBtn.textContent = 'Guardando...';
 
-      await api.patch(`/projects/${p.id}/web-status`, {
+      await saveWebStatus(p.id, {
         show_on_web,
         website_url,
         web_metric,
