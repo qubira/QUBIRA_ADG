@@ -3,7 +3,7 @@ import { getUser, setUser, navigate, normalizeUser, bumpPageToken } from './stat
 import { icon }                        from './utils.js';
 import { render as renderLogin }       from './pages/login.js';
 import { render as renderDashboard }   from './pages/dashboard.js';
-import { render as renderProjects }    from './pages/projects.js?v=42';
+import { render as renderProjects }    from './pages/projects.js?v=43';
 import { render as renderProjectDetail } from './pages/project-detail.js';
 import { render as renderContracts }   from './pages/contracts.js';
 import { render as renderConfig }      from './pages/configuracion.js';
