@@ -192,10 +192,26 @@ function renderProjectsSection() {
   return html;
 }
 
+// Franja superior llamativa: dónde se muestra el proyecto (Comercial y web pública)
+function franjaVisibilidad(p) {
+  if (!p.show_to_comercial && !p.show_on_web) return '';
+  const comercial = p.show_to_comercial ? `
+    <span class="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500" title="Habilitado para que lo vea el área Comercial">
+      ${icon('storefront', 15)} Comercial
+    </span>` : '';
+  const web = p.show_on_web ? `
+    <span class="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500" title="Publicado en la web de Casos que muestran impacto real">
+      <span class="relative flex w-2 h-2"><span class="absolute inline-flex w-full h-full rounded-full bg-white opacity-75 animate-ping"></span><span class="relative inline-flex w-2 h-2 rounded-full bg-white"></span></span>
+      ${icon('public', 15)} Web Impacto Real
+    </span>` : '';
+  return `<div class="flex -mx-5 -mt-5 mb-4 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">${comercial}${web}</div>`;
+}
+
 function projectCard(p) {
   const overdue = isOverdue(p);
   return `
-  <a href="#/projects/${p.id}" class="card p-5 hover:shadow-md transition-shadow block ${overdue ? 'border-l-4 border-l-red-400' : ''}">
+  <a href="#/projects/${p.id}" class="card p-5 hover:shadow-md transition-shadow block overflow-hidden ${overdue ? 'border-l-4 border-l-red-400' : ''}">
+    ${franjaVisibilidad(p)}
     <div class="flex items-start justify-between mb-3">
       <div class="flex items-center gap-3 flex-1 min-w-0">
         <div class="w-11 h-11 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden">
@@ -226,16 +242,6 @@ function projectCard(p) {
       ${priorityBadge(p.priority)}
       ${projectTypeBadge(p.project_type)}
       ${overdue ? overdueBadge() : ''}
-      ${p.show_to_comercial ? `
-        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/90 shadow-sm" title="Habilitado para que lo vea el área Comercial">
-          ${icon('storefront', 13)} Comercial
-        </span>
-      ` : ''}
-      ${p.show_on_web ? `
-        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/90 shadow-sm" title="Publicado en la web de Casos que muestran impacto real">
-          ${icon('public', 13)} Web Impacto Real
-        </span>
-      ` : ''}
     </div>
     ${p.family ? `<div class="mb-3 -mt-1"><span class="badge bg-pink-50 text-pink-700 inline-flex items-center gap-1">${icon('workspaces', 12)} ${esc(p.family)}</span></div>` : ''}
     <div class="mb-3">
