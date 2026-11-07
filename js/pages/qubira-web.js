@@ -285,95 +285,71 @@ function renderPreviewGrid(items) {
   }
 
   return `
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
       ${items.map(webCard).join('')}
     </div>
   `;
 }
 
 function webCard(p) {
-  const isPublished = !!p.show_on_web;
+  const pub = !!p.show_on_web;
   const metric = p.web_metric || '100%';
   const tagline = p.web_tagline || (p.project_type === 'web' ? 'Desarrollo Web' : p.project_type === 'mobile' ? 'Aplicativo Móvil' : 'Solución Digital');
-  const hasUrl = p.website_url && p.website_url.trim();
+  const url = (p.website_url || '').trim();
 
   return `
-    <div class="rounded-2xl overflow-hidden shadow-xl flex flex-col transition-all duration-300 hover:-translate-y-1 ${isPublished ? 'ring-2 ring-emerald-500/80 shadow-emerald-950/20' : 'opacity-85 ring-1 ring-gray-300'}" style="background: linear-gradient(180deg, #09121a 0%, #03080d 100%); min-height: 440px;">
-      
-      <!-- Barra de estado interna ADG -->
-      <div class="px-4 py-2.5 flex items-center justify-between border-b border-gray-800 bg-gray-900/60 backdrop-blur text-xs">
-        <div class="flex items-center gap-1.5 font-mono text-gray-400">
-          <span>${esc(p.code)}</span>
+    <div class="group bg-white rounded-2xl border ${pub ? 'border-emerald-200 shadow-sm shadow-emerald-100' : 'border-gray-200'} overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
+
+      <!-- Portada: logo sobre fondo oscuro, como en la web -->
+      <div class="relative h-36 flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 overflow-hidden">
+        <div class="absolute -right-10 -top-10 w-32 h-32 rounded-full blur-3xl ${pub ? 'bg-emerald-400/25' : 'bg-gray-400/10'}"></div>
+        <span class="absolute top-2.5 left-3 font-mono text-[10px] text-slate-400">${esc(p.code)}</span>
+        <span class="absolute top-2 right-2">${pub
+          ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-400 text-emerald-950"><span class="w-1.5 h-1.5 rounded-full bg-emerald-950 animate-pulse"></span>EN LA WEB</span>'
+          : '<span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/10 text-slate-300">NO PUBLICADO</span>'}</span>
+        <div class="relative w-40 h-20 rounded-xl bg-white shadow-lg flex items-center justify-center p-2.5 ${pub ? '' : 'grayscale opacity-70'}">
+          ${p.company_logo
+            ? `<img src="${esc(p.company_logo)}" alt="${esc(p.name)}" class="max-h-full max-w-full object-contain">`
+            : `<span class="flex flex-col items-center text-gray-300 text-[10px] font-semibold">${icon('apartment', 26)} Sin logo</span>`}
         </div>
-        <div class="flex items-center gap-2">
-          ${p.show_to_comercial ? `<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-900/50 text-emerald-300 border border-emerald-700/60 flex items-center gap-1">${icon('storefront', 12)} Comercial</span>` : ''}
-          ${isPublished
-            ? `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500 text-black flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-black animate-pulse"></span> PUBLICADO</span>`
-            : `<span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-800 text-gray-400">NO PUBLICADO</span>`}
-        </div>
+        ${p.show_to_comercial ? `<span class="absolute bottom-2 left-2 inline-flex items-center gap-0.5 px-1.5 py-px rounded bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[9px] font-bold uppercase shadow-sm" title="Habilitado para que lo vea el área Comercial">${icon('verified', 10)} Comercial</span>` : ''}
+        ${p.family ? `<span class="absolute bottom-2 right-2 px-1.5 py-px rounded bg-white/10 text-slate-300 text-[9px] font-mono truncate max-w-[45%]">${esc(p.family)}</span>` : ''}
       </div>
 
-      <!-- Tarjeta Web (Visualización exacta de la landing) -->
-      <div class="p-6 flex-1 flex flex-col justify-between relative overflow-hidden">
-        
-        <!-- Glow ambiental suave -->
-        <div class="absolute -right-16 -top-16 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <!-- Top: Nombre + Categoría -->
-        <div>
-          <div class="flex items-start justify-between gap-2 mb-4">
-            <div>
-              <h3 class="font-extrabold text-white text-base tracking-wider uppercase">${esc(p.name)}</h3>
-              <p class="text-[11px] font-semibold text-emerald-400/90 tracking-wide uppercase mt-0.5 flex items-center gap-1">
-                <span>✦</span> ${esc(tagline)}
-              </p>
-            </div>
-            ${p.family ? `<span class="text-[10px] bg-gray-800/80 text-gray-400 px-2 py-0.5 rounded border border-gray-700 font-mono">${esc(p.family)}</span>` : ''}
+      <!-- Datos -->
+      <div class="p-4 flex-1 flex flex-col gap-3">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h3 class="font-bold text-gray-900 leading-tight truncate" title="${esc(p.name)}">${esc(p.name)}</h3>
+            <p class="text-[11px] font-semibold text-indigo-600 uppercase tracking-wide mt-0.5 truncate">${esc(tagline)}</p>
           </div>
-
-          <!-- Logo container -->
-          <div class="w-full h-32 rounded-xl bg-white/95 border border-white/20 p-4 flex items-center justify-center my-3 shadow-inner">
-            ${p.company_logo
-              ? `<img src="${esc(p.company_logo)}" alt="${esc(p.name)}" class="max-h-full max-w-full object-contain">`
-              : `<div class="flex flex-col items-center gap-1 text-gray-400 font-semibold text-xs">${icon('apartment', 32)}<span>Sin Logo</span></div>`}
-          </div>
+          <span class="shrink-0 font-mono font-extrabold text-lg text-emerald-600 leading-none" title="Métrica de impacto">${esc(metric)}</span>
         </div>
 
-        <!-- Bottom: Métrica, Descripción y Botón URL -->
-        <div class="pt-2">
-          <div class="text-3xl font-extrabold text-white tracking-tight mb-4 font-mono">${esc(metric)}</div>
-
-          ${hasUrl ? `
-            <a href="${esc(p.website_url)}" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors">
-              <span>↗ Ver sitio</span>
-              <span class="text-[11px] text-gray-400 truncate max-w-[160px]">(${esc(p.website_url.replace(/^https?:\/\//, ''))})</span>
+        ${url ? `
+          <div class="flex items-center gap-2 p-2 rounded-lg bg-gray-50 border border-gray-100">
+            <a href="${esc(url)}" target="_blank" rel="noopener noreferrer" class="flex-1 min-w-0 inline-flex items-center gap-1 text-xs text-primary-600 hover:underline" title="${esc(url)}">
+              ${icon('open_in_new', 14)} <span class="truncate">${esc(url.replace(/^https?:\/\//, ''))}</span>
             </a>
-            <div class="mt-2 text-center">${botonEnlace(p)}</div>
-          ` : `
-            <div class="w-full py-2 px-3 rounded-lg bg-gray-800/60 border border-dashed border-gray-700 text-gray-400 font-medium text-xs flex items-center justify-center gap-1.5">
-              ${icon('link_off', 14)} Sin URL vinculada
-            </div>
-          `}
-        </div>
+            ${botonEnlace(p)}
+          </div>
+        ` : `
+          <div class="flex items-center justify-center gap-1.5 p-2 rounded-lg border border-dashed border-gray-200 text-gray-400 text-xs">
+            ${icon('link_off', 14)} Sin URL: en la web sale «En Desarrollo»
+          </div>
+        `}
       </div>
 
-      <!-- Barra de Controles de Gestión -->
-      <div class="p-3 bg-gray-950/90 border-t border-gray-800 flex items-center justify-between gap-2">
-        <button class="toggle-web-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${isPublished ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'}" data-id="${p.id}" data-published="${isPublished}">
-          ${icon(isPublished ? 'visibility_off' : 'visibility', 15)}
-          ${isPublished ? 'Despublicar' : 'Publicar'}
+      <!-- Acciones -->
+      <div class="px-4 py-2.5 border-t border-gray-100 bg-gray-50/70 flex items-center justify-between gap-2">
+        <button class="toggle-web-btn px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors ${pub ? 'text-red-600 hover:bg-red-50' : 'bg-emerald-600 text-white hover:bg-emerald-700'}" data-id="${p.id}" data-published="${pub}">
+          ${icon(pub ? 'visibility_off' : 'publish', 15)} ${pub ? 'Despublicar' : 'Publicar'}
         </button>
-
-        <div class="flex items-center gap-1">
-          <button class="edit-web-btn p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors" data-id="${p.id}" title="Editar datos web (URL, Métrica, Impacto)">
-            ${icon('edit_note', 18)}
-          </button>
-          <a href="#/projects/${p.id}" class="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors" title="Ver ficha completa del proyecto">
-            ${icon('open_in_new', 18)}
-          </a>
+        <div class="flex items-center gap-0.5">
+          <button class="edit-web-btn p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100" data-id="${p.id}" title="Editar datos web (URL, métrica, categoría)">${icon('edit', 17)}</button>
+          <a href="#/projects/${p.id}" class="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100" title="Ver ficha del proyecto">${icon('folder_open', 17)}</a>
         </div>
       </div>
-
     </div>
   `;
 }
