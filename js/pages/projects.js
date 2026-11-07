@@ -461,11 +461,6 @@ function openModal(editing = null) {
                 <p class="text-[11px] text-gray-400 mt-0.5">Etiqueta superior</p>
               </div>
             </div>
-            <div>
-              <label class="label">Frase o Descripción de Impacto Web</label>
-              <textarea class="input resize-none" name="web_description" id="web-description-input" rows="2" placeholder="Frase corta para la tarjeta web...">${esc(f.web_description||'')}</textarea>
-              <p class="text-[11px] text-gray-400 mt-0.5">Si se deja vacío, tomará la descripción general del proyecto</p>
-            </div>
           </div>
         </div>
 

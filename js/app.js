@@ -1,9 +1,9 @@
-import { api }                        from './api.js';
+﻿import { api }                        from './api.js';
 import { getUser, setUser, navigate, normalizeUser, bumpPageToken } from './state.js';
 import { icon }                        from './utils.js';
 import { render as renderLogin }       from './pages/login.js';
 import { render as renderDashboard }   from './pages/dashboard.js';
-import { render as renderProjects }    from './pages/projects.js';
+import { render as renderProjects }    from './pages/projects.js?v=38';
 import { render as renderProjectDetail } from './pages/project-detail.js';
 import { render as renderContracts }   from './pages/contracts.js';
 import { render as renderConfig }      from './pages/configuracion.js';
@@ -13,9 +13,9 @@ import { render as renderVisitas }     from './pages/visitas.js';
 import { render as renderCostoHerramientas } from './pages/costo-herramientas.js';
 import { render as renderInfoTecnico }       from './pages/info-tecnico.js?v=33';
 import { render as renderCalidad }           from './pages/calidad.js';
-import { render as renderQubiraWeb }         from './pages/qubira-web.js?v=37';
+import { render as renderQubiraWeb }         from './pages/qubira-web.js?v=38';
 
-// ─── Router ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Router â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const exactRoutes = {};
 const paramRoutes = [];
 
@@ -42,7 +42,7 @@ function matchRoute(hash) {
   return null;
 }
 
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let sidebarCollapsed = localStorage.getItem('sb') === '1';
 
 const QUALIFYING_AUDIT_CARGOS = ['SUPERVISOR', 'COORDINADOR', 'GERENTE'];
@@ -59,11 +59,11 @@ const NAV = [
   { path: '/calendario', iconName: 'calendar_month', label: 'Calendario' },
   { path: '/contracts',  iconName: 'description',   label: 'Contratos & Proformas' },
   { path: '/calidad',    iconName: 'verified',      label: 'Calidad' },
-  { path: '/config',     iconName: 'settings',      label: 'Configuración' },
+  { path: '/config',     iconName: 'settings',      label: 'ConfiguraciÃ³n' },
   { path: '/costo-herramientas', iconName: 'payments', label: 'Costo por OPP HERRAMIENTAS' },
-  { path: '/info-tecnico', iconName: 'memory',   label: 'Info Técnico' },
+  { path: '/info-tecnico', iconName: 'memory',   label: 'Info TÃ©cnico' },
   { path: '/visitas',    iconName: 'bar_chart',     label: 'Visitas',    visible: canViewAudit },
-  { path: '/auditoria',  iconName: 'fact_check',    label: 'Auditoría',  visible: canViewAudit },
+  { path: '/auditoria',  iconName: 'fact_check',    label: 'AuditorÃ­a',  visible: canViewAudit },
 ];
 
 function isActive(path, currentHash, exact) {
@@ -119,14 +119,14 @@ function renderSidebar(currentHash) {
           <p class="text-sm font-medium text-white truncate">${user.name}</p>
           <p class="text-xs text-gray-400 capitalize">${user.role}</p>
         </div>
-        <button id="switch-module-btn" class="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white" title="Cambiar de módulo">${icon('apps', 18)}</button>
-        <button id="logout-btn" class="p-1.5 rounded-lg hover:bg-red-500/10 text-gray-400 hover:text-red-400" title="Cerrar sesión">${icon('logout', 18)}</button>
+        <button id="switch-module-btn" class="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white" title="Cambiar de mÃ³dulo">${icon('apps', 18)}</button>
+        <button id="logout-btn" class="p-1.5 rounded-lg hover:bg-red-500/10 text-gray-400 hover:text-red-400" title="Cerrar sesiÃ³n">${icon('logout', 18)}</button>
       </div>` : `
       <div class="flex flex-col items-center gap-2 py-2">
         <div class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
           <span class="text-primary-700 font-semibold text-sm">${user.name?.[0]?.toUpperCase()}</span>
         </div>
-        <button id="switch-module-btn" class="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white" title="Cambiar de módulo">${icon('apps', 18)}</button>
+        <button id="switch-module-btn" class="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white" title="Cambiar de mÃ³dulo">${icon('apps', 18)}</button>
         <button id="logout-btn" class="p-1.5 rounded-lg hover:bg-red-500/10 text-gray-400 hover:text-red-400">${icon('logout', 18)}</button>
         <button id="sb-toggle" class="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400">${icon('chevron_right', 18)}</button>
       </div>`}
@@ -146,7 +146,7 @@ function renderSidebar(currentHash) {
   });
 }
 
-// ─── Route handling ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Route handling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function handleRoute() {
   const hash = location.hash.slice(1) || '/';
   const user = getUser();
@@ -174,7 +174,7 @@ function handleRoute() {
   }
 }
 
-// ─── Register routes ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Register routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 addRoute('/',                () => renderDashboard());
 addRoute('/login',           () => renderLogin());
 addRoute('/projects',        () => renderProjects());
@@ -190,7 +190,7 @@ addRoute('/config',          () => renderConfig());
 addRoute('/costo-herramientas', () => renderCostoHerramientas());
 addRoute('/info-tecnico',    () => renderInfoTecnico());
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 window.addEventListener('hashchange', handleRoute);
 
 const CENTRAL_LOGIN_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
@@ -224,9 +224,9 @@ window.addEventListener('DOMContentLoaded', async () => {
       setUser(user);
       history.replaceState(null, '', location.pathname + location.hash);
     } catch {
-      /* Código de traspaso inválido/vencido (ej. carrera de doble
-         envío del 2FA ya corregida en el hub, o timing ajustado) — la
-         sesión central sigue siendo válida, así que vuelve directo al
+      /* CÃ³digo de traspaso invÃ¡lido/vencido (ej. carrera de doble
+         envÃ­o del 2FA ya corregida en el hub, o timing ajustado) â€” la
+         sesiÃ³n central sigue siendo vÃ¡lida, asÃ­ que vuelve directo al
          hub en vez de forzar un login completo. */
       window.location.href = CENTRAL_MODULO_URL;
       return;
@@ -256,14 +256,14 @@ window.addEventListener('DOMContentLoaded', async () => {
   handleRoute();
 });
 
-// ─── Cierre de sesión por inactividad + detección de sesión reemplazada ──────
+// â”€â”€â”€ Cierre de sesiÃ³n por inactividad + detecciÃ³n de sesiÃ³n reemplazada â”€â”€â”€â”€â”€â”€
 /* Basado en Date.now() y un solo "tick" cada 1s (no en cadenas de
    setTimeout) para que funcione igual aunque el navegador retrase los
-   timers de una pestaña en segundo plano — al volver a mirarla (o en
-   el próximo tick, atrasado o no) el cálculo de tiempo real transcurrido
-   sigue siendo correcto. Además hace un "heartbeat" periódico contra el
-   servidor: si esta cuenta inició sesión en otro dispositivo, el
-   servidor invalida esta sesión y lo detecta acá aunque no haya pasado
+   timers de una pestaÃ±a en segundo plano â€” al volver a mirarla (o en
+   el prÃ³ximo tick, atrasado o no) el cÃ¡lculo de tiempo real transcurrido
+   sigue siendo correcto. AdemÃ¡s hace un "heartbeat" periÃ³dico contra el
+   servidor: si esta cuenta iniciÃ³ sesiÃ³n en otro dispositivo, el
+   servidor invalida esta sesiÃ³n y lo detecta acÃ¡ aunque no haya pasado
    ninguna inactividad, mostrando un aviso en vez de un cierre mudo. */
 (function setupSessionGuard(onLogout) {
   const WARN_AFTER_MS = 10 * 60 * 1000;
@@ -288,9 +288,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(17,24,39,.6);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:inherit';
     overlay.innerHTML = `
       <div style="background:#fff;border-radius:16px;padding:28px;max-width:340px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.25)">
-        <div style="width:48px;height:48px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:22px">⏱</div>
-        <h3 style="font-size:16px;font-weight:800;margin:0 0 8px;color:#111827">¿Sigues ahí?</h3>
-        <p style="font-size:13px;color:#6b7280;margin:0 0 18px;line-height:1.5">Tu sesión se cerrará por inactividad en <strong id="inactivity-countdown">${secondsLeft}</strong> segundos.</p>
+        <div style="width:48px;height:48px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:22px">â±</div>
+        <h3 style="font-size:16px;font-weight:800;margin:0 0 8px;color:#111827">Â¿Sigues ahÃ­?</h3>
+        <p style="font-size:13px;color:#6b7280;margin:0 0 18px;line-height:1.5">Tu sesiÃ³n se cerrarÃ¡ por inactividad en <strong id="inactivity-countdown">${secondsLeft}</strong> segundos.</p>
         <button id="inactivity-stay-btn" style="width:100%;padding:12px;border:none;border-radius:10px;background:#4f46e5;color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Seguir conectado</button>
       </div>`;
     document.body.appendChild(overlay);
@@ -310,9 +310,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach(evt =>
     document.addEventListener(evt, handleActivity, { passive: true }));
 
-  /* api.get ya sabe distinguir "sesión reemplazada" (redirige a la
+  /* api.get ya sabe distinguir "sesiÃ³n reemplazada" (redirige a la
      alerta con el IP del nuevo dispositivo) de un 401 normal (manda al
-     login) — así que este heartbeat no necesita repetir esa lógica,
+     login) â€” asÃ­ que este heartbeat no necesita repetir esa lÃ³gica,
      solo disparar la llamada para que ese chequeo ocurra. */
   async function heartbeat() {
     if (!localStorage.getItem('token')) return;

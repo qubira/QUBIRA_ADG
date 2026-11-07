@@ -549,11 +549,6 @@ function openPublishModal() {
           </div>
         </div>
 
-        <div>
-          <label class="label font-semibold">Frase o Descripción de Impacto para la Web</label>
-          <textarea class="input resize-none" id="modal-web-desc" name="web_description" rows="2" placeholder="Ej: Automatización en la captura y registro de pagos en tiempo real..."></textarea>
-          <p class="text-xs text-gray-400 mt-1">Texto corto visible en la tarjeta del carrusel</p>
-        </div>
 
         <div class="bg-indigo-50/80 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-900 flex items-start gap-2">
           ${icon('info', 18)}
@@ -608,7 +603,6 @@ function openPublishModal() {
     document.getElementById('modal-website-url').value = p.website_url || '';
     document.getElementById('modal-web-metric').value = p.web_metric || '100%';
     document.getElementById('modal-web-tagline').value = p.web_tagline || (p.project_type === 'web' ? 'Desarrollo Web' : p.project_type === 'mobile' ? 'Aplicativo Móvil' : 'Solución Digital');
-    document.getElementById('modal-web-desc').value = p.web_description || p.description || '';
   });
 
   // Botones de métrica rápida
@@ -628,7 +622,6 @@ function openPublishModal() {
     const website_url = document.getElementById('modal-website-url').value.trim();
     const web_metric = document.getElementById('modal-web-metric').value.trim();
     const web_tagline = document.getElementById('modal-web-tagline').value.trim();
-    const web_description = document.getElementById('modal-web-desc').value.trim();
 
     try {
       saveBtn.disabled = true;
@@ -638,9 +631,7 @@ function openPublishModal() {
         show_on_web: true,
         website_url,
         web_metric,
-        web_tagline,
-        web_description
-      });
+        web_tagline      });
 
       toast('Proyecto publicado exitosamente en Qubira Web');
       closeModal();
@@ -705,10 +696,6 @@ function openEditWebModal(p) {
         </div>
       </div>
 
-      <div>
-        <label class="label font-semibold">Frase o Descripción de Impacto Web</label>
-        <textarea class="input resize-none" id="edit-web-desc" rows="2" placeholder="Frase concisa que describe el impacto">${esc(p.web_description || p.description || '')}</textarea>
-      </div>
     </form>
   `, 'lg', `
     <div class="flex justify-between items-center w-full">
@@ -737,7 +724,6 @@ function openEditWebModal(p) {
     const website_url = document.getElementById('edit-website-url').value.trim();
     const web_metric = document.getElementById('edit-web-metric').value.trim();
     const web_tagline = document.getElementById('edit-web-tagline').value.trim();
-    const web_description = document.getElementById('edit-web-desc').value.trim();
 
     const saveBtn = document.getElementById('edit-modal-save');
     try {
@@ -748,9 +734,7 @@ function openEditWebModal(p) {
         show_on_web,
         website_url,
         web_metric,
-        web_tagline,
-        web_description
-      });
+        web_tagline      });
 
       toast('Datos web actualizados correctamente');
       closeModal();
