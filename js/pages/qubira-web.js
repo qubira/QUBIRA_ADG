@@ -6,6 +6,12 @@ let _webCases = [];
 let _allProjects = [];
 let _filter = { search: '', status: 'all', view: 'preview' }; // view: 'preview' | 'list'
 
+// Actualización automática: consulta la API y repinta solo si algo cambió
+const REFRESCO_MS = 20000;
+let _refresco = null;
+let _firma = '';
+let _turnoCarga = 0;
+
 function esc(s) {
   if (s == null) return '';
   return String(s)
@@ -21,19 +27,63 @@ const saveWebStatus = (id, body) => (api.patch ? api.patch(`/projects/${id}/web-
 export function render() {
   const main = document.getElementById('main');
   main.innerHTML = `<div class="p-6 max-w-7xl mx-auto" id="qubira-web-page">${spinner()}</div>`;
+  _firma = '';
   load();
+  iniciarRefresco();
 }
 
-async function load() {
+function iniciarRefresco() {
+  detenerRefresco();
+  _refresco = setInterval(refrescar, REFRESCO_MS);
+  document.addEventListener('visibilitychange', refrescar);
+  window.addEventListener('focus', refrescar);
+}
+
+function detenerRefresco() {
+  clearInterval(_refresco);
+  _refresco = null;
+  document.removeEventListener('visibilitychange', refrescar);
+  window.removeEventListener('focus', refrescar);
+}
+
+function refrescar() {
+  if (!document.getElementById('qubira-web-page')) { detenerRefresco(); return; }
+  if (document.hidden || !_firma) return;
+  // No interrumpir un formulario abierto ni el desplegable de filtros
+  if (document.getElementById('modal-overlay') || document.activeElement?.id === 'status-filter') return;
+  load({ silencioso: true });
+}
+
+// Repinta conservando lo que el usuario está escribiendo en el buscador
+function repintarConservandoBusqueda() {
+  const input = document.getElementById('search-input');
+  const enFoco = input && document.activeElement === input;
+  const valor = input?.value, inicio = input?.selectionStart, fin = input?.selectionEnd;
+  renderPage();
+  const nuevo = document.getElementById('search-input');
+  if (!nuevo || valor === undefined) return;
+  nuevo.value = valor;
+  if (enFoco) { nuevo.focus(); nuevo.setSelectionRange(inicio, fin); }
+}
+
+async function load({ silencioso = false } = {}) {
+  const turno = ++_turnoCarga;
   try {
     const [webCases, allProjects] = await Promise.all([
-      api.get('/projects/web-cases').catch(() => []),
-      api.get('/projects').catch(() => [])
+      api.get('/projects/web-cases'),
+      api.get('/projects').catch(() => _allProjects)
     ]);
-    _webCases = Array.isArray(webCases) ? webCases : [];
+    // Una carga más reciente (por ejemplo, tras guardar) manda sobre esta
+    if (turno !== _turnoCarga) return;
     _allProjects = Array.isArray(allProjects) ? allProjects : [];
-    renderPage();
+    const firma = JSON.stringify(webCases);
+    if (silencioso && firma === _firma) return;
+    _firma = firma;
+    _webCases = Array.isArray(webCases) ? webCases : [];
+    if (silencioso) repintarConservandoBusqueda(); else renderPage();
   } catch (err) {
+    // Un fallo pasajero en segundo plano no debe borrar lo que ya se ve
+    if (silencioso || turno !== _turnoCarga) return;
     const container = document.getElementById('qubira-web-page');
     if (container) {
       container.innerHTML = `
@@ -42,7 +92,7 @@ async function load() {
           <p class="text-gray-600 font-medium mt-3">Error al cargar datos de Qubira Web</p>
           <button class="btn-primary mt-4" id="retry-load-btn">${icon('refresh', 18)} Reintentar</button>
         </div>`;
-      document.getElementById('retry-load-btn')?.addEventListener('click', load);
+      document.getElementById('retry-load-btn')?.addEventListener('click', () => load());
     }
   }
 }
