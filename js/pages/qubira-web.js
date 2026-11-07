@@ -287,7 +287,6 @@ function webCard(p) {
   const isPublished = !!p.show_on_web;
   const metric = p.web_metric || '100%';
   const tagline = p.web_tagline || (p.project_type === 'web' ? 'Desarrollo Web' : p.project_type === 'mobile' ? 'Aplicativo Móvil' : 'Solución Digital');
-  const desc = p.web_description || p.description || 'Proyecto desarrollado e implementado con arquitectura escalable.';
   const hasUrl = p.website_url && p.website_url.trim();
 
   return `
@@ -334,8 +333,7 @@ function webCard(p) {
 
         <!-- Bottom: Métrica, Descripción y Botón URL -->
         <div class="pt-2">
-          <div class="text-3xl font-extrabold text-white tracking-tight mb-1 font-mono">${esc(metric)}</div>
-          <p class="text-xs text-gray-300 leading-relaxed line-clamp-2 mb-4">${esc(desc)}</p>
+          <div class="text-3xl font-extrabold text-white tracking-tight mb-4 font-mono">${esc(metric)}</div>
 
           ${hasUrl ? `
             <a href="${esc(p.website_url)}" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors">
