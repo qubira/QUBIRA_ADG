@@ -192,26 +192,24 @@ function renderProjectsSection() {
   return html;
 }
 
-// Franja superior llamativa: dónde se muestra el proyecto (Comercial y web pública)
-function franjaVisibilidad(p) {
-  if (!p.show_to_comercial && !p.show_on_web) return '';
-  const comercial = p.show_to_comercial ? `
-    <span class="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500" title="Habilitado para que lo vea el área Comercial">
-      ${icon('storefront', 15)} Comercial
-    </span>` : '';
-  const web = p.show_on_web ? `
-    <span class="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500" title="Publicado en la web de Casos que muestran impacto real">
-      <span class="relative flex w-2 h-2"><span class="absolute inline-flex w-full h-full rounded-full bg-white opacity-75 animate-ping"></span><span class="relative inline-flex w-2 h-2 rounded-full bg-white"></span></span>
-      ${icon('public', 15)} Web Impacto Real
-    </span>` : '';
-  return `<div class="flex -mx-5 -mt-5 mb-4 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">${comercial}${web}</div>`;
+// Cintas en la esquina: dónde se muestra el proyecto (Comercial y web pública)
+function cintasVisibilidad(p) {
+  const cintas = [
+    p.show_to_comercial && { txt: 'Comercial', ico: 'storefront', cls: 'from-emerald-500 to-teal-500', tip: 'Habilitado para que lo vea el área Comercial' },
+    p.show_on_web && { txt: 'Web', ico: 'public', cls: 'from-indigo-500 via-violet-500 to-fuchsia-500', tip: 'Publicado en la web de Casos que muestran impacto real' },
+  ].filter(Boolean);
+  if (!cintas.length) return '';
+  return `<div class="absolute top-0 right-0 w-36 h-36 overflow-hidden pointer-events-none">${cintas.map((c, n) => `
+    <div class="absolute w-[170px] rotate-45 bg-gradient-to-r ${c.cls} text-white text-[10px] font-bold uppercase tracking-wider shadow-md flex items-center justify-center gap-1 py-[3px]" style="top:${20 + n * 22}px;right:${-44 + n * 22}px" title="${c.tip}">
+      ${icon(c.ico, 12)} ${c.txt}
+    </div>`).join('')}</div>`;
 }
 
 function projectCard(p) {
   const overdue = isOverdue(p);
   return `
-  <a href="#/projects/${p.id}" class="card p-5 hover:shadow-md transition-shadow block overflow-hidden ${overdue ? 'border-l-4 border-l-red-400' : ''}">
-    ${franjaVisibilidad(p)}
+  <a href="#/projects/${p.id}" class="card p-5 hover:shadow-md transition-shadow block relative overflow-hidden ${overdue ? 'border-l-4 border-l-red-400' : ''}">
+    ${cintasVisibilidad(p)}
     <div class="flex items-start justify-between mb-3">
       <div class="flex items-center gap-3 flex-1 min-w-0">
         <div class="w-11 h-11 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden">
@@ -225,7 +223,7 @@ function projectCard(p) {
           <p class="text-sm text-gray-500 truncate">${esc(p.client)}</p>
         </div>
       </div>
-      <div class="flex gap-1 ml-2 shrink-0">
+      <div class="flex gap-1 ml-2 shrink-0 ${p.show_to_comercial && p.show_on_web ? 'mr-20' : (p.show_to_comercial || p.show_on_web) ? 'mr-12' : ''}">
         <button class="history-btn p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600" data-id="${p.id}" title="Ver historial de cambios">
           ${icon('visibility', 16)}
         </button>
