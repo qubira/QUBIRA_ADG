@@ -98,6 +98,16 @@ function renderPage() {
         ${projectStatusBadge(p.status)}
         ${priorityBadge(p.priority)}
         ${isOverdue(p) ? overdueBadge() : ''}
+        ${p.show_to_comercial ? `
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/90 shadow-sm" title="Habilitado para que lo vea el área Comercial">
+            ${icon('storefront', 13)} Comercial
+          </span>
+        ` : ''}
+        ${p.show_on_web ? `
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/90 shadow-sm" title="Publicado en la web de Casos que muestran impacto real">
+            ${icon('public', 13)} Web Impacto Real
+          </span>
+        ` : ''}
       </div>
       <p class="text-gray-500 mt-1">${esc(p.code)} · ${esc(p.client)}</p>
     </div>

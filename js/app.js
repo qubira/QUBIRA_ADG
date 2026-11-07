@@ -13,6 +13,7 @@ import { render as renderVisitas }     from './pages/visitas.js';
 import { render as renderCostoHerramientas } from './pages/costo-herramientas.js';
 import { render as renderInfoTecnico }       from './pages/info-tecnico.js?v=33';
 import { render as renderCalidad }           from './pages/calidad.js';
+import { render as renderQubiraWeb }         from './pages/qubira-web.js';
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 const exactRoutes = {};
@@ -54,6 +55,7 @@ function canViewAudit(user) {
 const NAV = [
   { path: '/',           iconName: 'dashboard',     label: 'Dashboard',            exact: true },
   { path: '/projects',   iconName: 'folder',        label: 'Proyectos' },
+  { path: '/qubira-web', iconName: 'public',        label: 'Qubira Web' },
   { path: '/calendario', iconName: 'calendar_month', label: 'Calendario' },
   { path: '/contracts',  iconName: 'description',   label: 'Contratos & Proformas' },
   { path: '/calidad',    iconName: 'verified',      label: 'Calidad' },
@@ -177,6 +179,7 @@ addRoute('/',                () => renderDashboard());
 addRoute('/login',           () => renderLogin());
 addRoute('/projects',        () => renderProjects());
 addRoute('/projects/:id',    p  => renderProjectDetail(p));
+addRoute('/qubira-web',      () => renderQubiraWeb());
 addRoute('/calendario',      () => renderCalendario());
 addRoute('/auditoria',       () => renderAuditoria());
 addRoute('/visitas',         () => renderVisitas());

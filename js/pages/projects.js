@@ -32,8 +32,18 @@ export function render() {
 }
 
 function load() {
-  api.get('/projects', _filter).then(data => {
-    _projects = data;
+  const query = { ..._filter };
+  let localFilter = null;
+  if (_filter.status === 'comercial') {
+    delete query.status;
+    localFilter = p => !!p.show_to_comercial;
+  } else if (_filter.status === 'web') {
+    delete query.status;
+    localFilter = p => !!p.show_on_web;
+  }
+
+  api.get('/projects', query).then(data => {
+    _projects = localFilter ? data.filter(localFilter) : data;
     renderPage();
   }).catch(() => {
     document.getElementById('projects-page').innerHTML = '<p class="text-center text-gray-400 py-16">Error al cargar proyectos</p>';
@@ -62,6 +72,8 @@ function renderPage() {
         <option value="finished_by_ti" ${_filter.status==='finished_by_ti'?'selected':''}>Finalizados (por revisar)</option>
         <option value="completed"      ${_filter.status==='completed'     ?'selected':''}>Completados</option>
         <option value="cancelled"      ${_filter.status==='cancelled'     ?'selected':''}>Cancelados</option>
+        <option value="comercial"      ${_filter.status==='comercial'     ?'selected':''}>🏷️ Solo Panel Comercial</option>
+        <option value="web"            ${_filter.status==='web'           ?'selected':''}>🌐 Solo Web Impacto Real</option>
       </select>
       <select id="family-filter" class="input w-auto">
         <option value="">Todas las familias</option>
@@ -214,6 +226,16 @@ function projectCard(p) {
       ${priorityBadge(p.priority)}
       ${projectTypeBadge(p.project_type)}
       ${overdue ? overdueBadge() : ''}
+      ${p.show_to_comercial ? `
+        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/90 shadow-sm" title="Habilitado para que lo vea el área Comercial">
+          ${icon('storefront', 13)} Comercial
+        </span>
+      ` : ''}
+      ${p.show_on_web ? `
+        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/90 shadow-sm" title="Publicado en la web de Casos que muestran impacto real">
+          ${icon('public', 13)} Web Impacto Real
+        </span>
+      ` : ''}
     </div>
     ${p.family ? `<div class="mb-3 -mt-1"><span class="badge bg-pink-50 text-pink-700 inline-flex items-center gap-1">${icon('workspaces', 12)} ${esc(p.family)}</span></div>` : ''}
     <div class="mb-3">
@@ -243,7 +265,8 @@ function openModal(editing = null) {
   const f = editing || { name:'', client:'', description:'', status:'pending', progress:0, budget:'', currency:'USD',
     start_date:'', end_date:'', responsible_id:'', priority:'medium', company_name:'', company_logo:'',
     id_document_type:'dni', id_document_number:'', project_type:'web', github_url:'', website_url:'', family:'',
-    show_to_comercial:false, commercial_offer_type:'', commercial_price:'', commercial_price_currency:'PEN', commercial_notes:'' };
+    show_to_comercial:false, commercial_offer_type:'', commercial_price:'', commercial_price_currency:'PEN', commercial_notes:'',
+    show_on_web:false, web_metric:'100%', web_tagline:'', web_description:'', web_order:0 };
 
   const userOpts = _users.map(u => `<option value="${u.id}" ${String(f.responsible_id)===String(u.id)?'selected':''}>${esc(u.name)}</option>`).join('');
   const docOpts = buildDocOpts(f.id_document_type);
@@ -415,6 +438,37 @@ function openModal(editing = null) {
           </div>
         </div>
 
+        ${sectionTitle('Publicación Web (Casos de Éxito)')}
+        <div class="mb-5 bg-indigo-50/40 border border-indigo-100 rounded-lg p-3.5">
+          <label class="flex items-center gap-2 mb-2 cursor-pointer select-none">
+            <input type="checkbox" id="show-on-web-check" ${f.show_on_web?'checked':''} class="w-4 h-4 rounded border-indigo-600 text-indigo-600 focus:ring-indigo-500">
+            <span class="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+              ${icon('public', 16)} Publicar en la web («Casos que muestran impacto real»)
+            </span>
+          </label>
+          <p class="text-xs text-gray-500 ml-6 mb-3">Muestra este proyecto en el carrusel público de la página web de Qubira con su logo, nombre, URL y métrica.</p>
+          
+          <div id="web-publication-fields" class="space-y-3 pt-3 border-t border-indigo-100 ${f.show_on_web?'':'hidden'}">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Métrica de Impacto</label>
+                <input class="input font-mono" name="web_metric" id="web-metric-input" value="${esc(f.web_metric||'100%')}" placeholder="Ej: 100%, 3x, 40%">
+                <p class="text-[11px] text-gray-400 mt-0.5">Métrica grande en la tarjeta</p>
+              </div>
+              <div>
+                <label class="label">Categoría / Industria Web</label>
+                <input class="input" name="web_tagline" id="web-tagline-input" value="${esc(f.web_tagline||'')}" placeholder="Ej: Fintech & Pagos Digitales">
+                <p class="text-[11px] text-gray-400 mt-0.5">Etiqueta superior</p>
+              </div>
+            </div>
+            <div>
+              <label class="label">Frase o Descripción de Impacto Web</label>
+              <textarea class="input resize-none" name="web_description" id="web-description-input" rows="2" placeholder="Frase corta para la tarjeta web...">${esc(f.web_description||'')}</textarea>
+              <p class="text-[11px] text-gray-400 mt-0.5">Si se deja vacío, tomará la descripción general del proyecto</p>
+            </div>
+          </div>
+        </div>
+
         ${sectionTitle('Presupuesto y Fechas')}
         <div class="grid grid-cols-2 gap-3 mb-5">
           <div>
@@ -488,6 +542,10 @@ function openModal(editing = null) {
     const on = e.target.checked;
     document.getElementById('comercial-fields').classList.toggle('opacity-50', !on);
     COMERCIAL_FIELD_IDS.forEach(id => { document.getElementById(id).disabled = !on; });
+  });
+
+  document.getElementById('show-on-web-check')?.addEventListener('change', e => {
+    document.getElementById('web-publication-fields')?.classList.toggle('hidden', !e.target.checked);
   });
 
   /* Las secciones de venta/alquiler se muestran u ocultan según el
@@ -579,6 +637,9 @@ function openModal(editing = null) {
     e.preventDefault();
     const fd = new FormData(e.target);
     fd.set('show_to_comercial', document.getElementById('show-to-comercial-check').checked ? 'true' : 'false');
+    fd.set('show_on_web', document.getElementById('show-on-web-check').checked ? 'true' : 'false');
+    const logoUrl = document.getElementById('logo-url-input')?.value?.trim();
+    if (logoUrl) fd.set('company_logo_url', logoUrl);
     const marginText = document.getElementById('opp-margin-display').textContent;
     if (marginText !== '—') fd.set('opp_margin_pct', marginText.replace('%', ''));
     const cost = Number(document.getElementById('opp-cost-base-input').value) || 0;
