@@ -55,6 +55,8 @@ function renderPage() {
   if (!container) return;
 
   container.innerHTML = `
+    <!-- Encabezado y filtros fijos al hacer scroll -->
+    <div class="sticky top-0 z-20 bg-gray-50 shadow-sm -mx-6 -mt-6 px-6 pt-6 pb-1 mb-4 border-b border-gray-200/70">
     ${pageHeader('Proyectos',
       `${_projects.length} proyecto${_projects.length !== 1 ? 's' : ''}`,
       `<button id="new-project-btn" class="btn-primary">${icon('add', 20)} Nuevo Proyecto</button>`)}
@@ -82,6 +84,7 @@ function renderPage() {
       <button id="group-family-btn" class="btn-secondary ${_groupByFamily ? 'bg-primary-50 text-primary-700 border-primary-200' : ''}">
         ${icon('workspaces', 18)} Agrupar por familia
       </button>
+    </div>
     </div>
 
     ${renderProjectsSection()}`;
