@@ -9,7 +9,7 @@ import { render as renderContracts }   from './pages/contracts.js';
 import { render as renderConfig }      from './pages/configuracion.js';
 import { render as renderCalendario }  from './pages/calendario.js';
 import { render as renderAuditoria }   from './pages/auditoria.js';
-import { render as renderVisitas }     from './pages/visitas.js?v=45';
+import { render as renderVisitas }     from './pages/visitas.js?v=46';
 import { render as renderCostoHerramientas } from './pages/costo-herramientas.js';
 import { render as renderInfoTecnico }       from './pages/info-tecnico.js?v=33';
 import { render as renderCalidad }           from './pages/calidad.js';

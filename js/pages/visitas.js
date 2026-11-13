@@ -162,6 +162,7 @@ function rangeHtml() {
   <div class="flex items-center gap-2 mb-4">
     <span class="text-sm text-gray-500">Rango de las estadísticas:</span>
     <select id="vis-range" class="input w-auto">
+      <option value="0"  ${_days === 0 ? 'selected' : ''}>Hoy</option>
       <option value="7"  ${_days === 7 ? 'selected' : ''}>Últimos 7 días</option>
       <option value="30" ${_days === 30 ? 'selected' : ''}>Últimos 30 días</option>
       <option value="90" ${_days === 90 ? 'selected' : ''}>Últimos 90 días</option>
@@ -213,6 +214,8 @@ function metricsContentHtml() {
   return resumenHtml();
 }
 
+const textoRango = () => (_days === 0 ? 'hoy' : `últimos ${_days} días`);
+
 function sectionHeading(iconName, title, desc) {
   return `
   <div class="flex items-start gap-3 mb-4">
@@ -229,7 +232,7 @@ function resumenHtml() {
   return `
   ${sectionHeading('bar_chart', 'Resumen', 'Panorama general del tráfico e interacciones del sitio en el rango seleccionado.')}
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-    ${statCard('visibility', 'Vistas de página', s.total_views, 'bg-primary-600', `últimos ${s.days} días`)}
+    ${statCard('visibility', 'Vistas de página', s.total_views, 'bg-primary-600', textoRango())}
     ${statCard('groups', 'Visitantes únicos', s.unique_visitors, 'bg-green-500', `${s.new_visitors ?? 0} nuevos · ${s.returning_visitors ?? 0} recurrentes`)}
     ${statCard('local_fire_department', 'Leads calientes', s.hot_leads ?? 0, 'bg-red-500', 'escribieron o mandaron WhatsApp')}
     ${statCard('chat', 'Clicks en WhatsApp', s.whatsapp_clicks, 'bg-green-500', 'flotante + botones de contacto')}
@@ -245,7 +248,7 @@ function resumenHtml() {
     ${statCard('check_circle', 'Postulaciones enviadas', s.job_applications ?? 0, 'bg-green-500', 'bolsa de trabajo pública')}
   </div>
   <div class="card p-5">
-    <h3 class="font-semibold text-gray-900 mb-3">Vistas de página por día (${s.days} días)</h3>
+    <h3 class="font-semibold text-gray-900 mb-3">Vistas de página por día (${_days === 0 ? 'hoy' : s.days + ' días'})</h3>
     ${(s.views_by_day || []).length === 0
       ? '<p class="text-center text-gray-400 py-10 text-sm">Sin vistas registradas en este rango.</p>'
       : singleBarChart(s.views_by_day, { key: 'total' })}
@@ -365,7 +368,7 @@ function habitosHtml() {
   ${sectionHeading('insights', 'Hábitos de los visitantes', 'Quién está ahora, cuándo visitan, qué pulsan y por dónde entran y salen del sitio.')}
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
     ${statCard('sensors', 'En vivo ahora', h.en_vivo, 'bg-red-500', h.en_vivo ? (h.en_vivo_paginas || []).map(pagina).join(', ') : 'nadie en los últimos 5 min')}
-    ${statCard('auto_stories', 'Páginas por visitante', h.paginas_por_visitante, 'bg-primary-600', `últimos ${h.days} días`)}
+    ${statCard('auto_stories', 'Páginas por visitante', h.paginas_por_visitante, 'bg-primary-600', textoRango())}
     ${statCard('timer', 'Duración media de la visita', formatSeconds(h.duracion_media_seg), 'bg-green-500', 'del primer al último evento')}
     ${statCard('logout', 'Tasa de rebote', `${h.tasa_rebote}%`, 'bg-amber-500', 'vieron 1 página y no interactuaron')}
   </div>
