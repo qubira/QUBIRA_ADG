@@ -8,6 +8,9 @@ let _projects = [], _users = [], _docTypes = [], _families = [], _filter = { sta
 let _clients = [], _docNumbers = [], _companyNames = [];
 let _reqs = [], _reqProjectId = null;
 let _groupByFamily = false;
+// Tipo de vista de la lista de proyectos (se recuerda en el navegador)
+const VISTAS = [['tarjetas', 'grid_view', 'Tarjetas'], ['lista', 'table_rows', 'Lista'], ['compacta', 'view_comfy', 'Compacta'], ['tablero', 'view_kanban', 'Tablero']];
+let _vista = (() => { try { return localStorage.getItem('adg_proyectos_vista') || 'tarjetas'; } catch { return 'tarjetas'; } })();
 
 /* Un solo listener delegado (no uno por apertura de modal) para cerrar
    cualquier combobox (familia, cliente, número de documento, nombre de
@@ -81,6 +84,9 @@ function renderPage() {
         <option value="">Todas las familias</option>
         ${_families.map(f => `<option value="${esc(f.family)}" ${_filter.family===f.family?'selected':''}>${esc(f.family)} (${f.count})</option>`).join('')}
       </select>
+      <div class="flex bg-white border border-gray-200 rounded-lg p-0.5" role="group" aria-label="Tipo de vista">
+        ${VISTAS.map(([k, ic, t]) => `<button class="vista-btn px-2.5 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1 transition-colors ${_vista === k ? 'bg-primary-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'}" data-vista="${k}" title="Vista ${t}">${icon(ic, 16)}<span class="hidden 2xl:inline">${t}</span></button>`).join('')}
+      </div>
       <button id="group-family-btn" class="btn-secondary ${_groupByFamily ? 'bg-primary-50 text-primary-700 border-primary-200' : ''}">
         ${icon('workspaces', 18)} Agrupar por familia
       </button>
@@ -104,6 +110,11 @@ function renderPage() {
     _filter.family = e.target.value;
     load();
   });
+  document.querySelectorAll('.vista-btn').forEach(b => b.addEventListener('click', () => {
+    _vista = b.dataset.vista;
+    try { localStorage.setItem('adg_proyectos_vista', _vista); } catch { /* sin almacenamiento */ }
+    renderPage();
+  }));
   document.getElementById('group-family-btn').addEventListener('click', () => {
     _groupByFamily = !_groupByFamily;
     renderPage();
@@ -152,7 +163,77 @@ function emptyState() {
 }
 
 function projectGrid(items) {
+  if (_vista === 'lista') return projectTable(items);
+  if (_vista === 'compacta') return `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3">${items.map(projectMini).join('')}</div>`;
+  if (_vista === 'tablero') return projectBoard(items);
   return `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">${items.map(projectCard).join('')}</div>`;
+}
+
+// Botones de historial, editar y eliminar (mismas clases que la tarjeta, así usan los mismos listeners)
+function accionesProyecto(p, tam = 16) {
+  return `<div class="flex gap-0.5 shrink-0">
+    <button class="history-btn p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600" data-id="${p.id}" title="Ver historial de cambios">${icon('visibility', tam)}</button>
+    <button class="edit-btn p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600" data-id="${p.id}" title="Editar">${icon('edit', tam)}</button>
+    <button class="delete-btn p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600" data-id="${p.id}" title="Eliminar">${icon('delete', tam)}</button>
+  </div>`;
+}
+const logoProyecto = (p, cls = 'w-9 h-9') => `<div class="${cls} rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden">${p.company_logo ? `<img src="${esc(p.company_logo)}" class="w-full h-full object-contain">` : icon('apartment', 18)}</div>`;
+const barraMini = pct => `<div class="h-1.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-primary-500'}" style="width:${Math.min(100, pct || 0)}%"></div></div>`;
+
+// Vista Lista: tabla con todos los datos en columnas
+function projectTable(items) {
+  return `<div class="card overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead class="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 font-semibold border-b border-gray-200">
+      <tr><th class="text-left py-2.5 px-3">Proyecto</th><th class="text-left py-2.5 px-3">Cliente</th><th class="text-left py-2.5 px-3">Estado</th>
+      <th class="text-left py-2.5 px-3">Prioridad</th><th class="text-left py-2.5 px-3">Tipo</th><th class="text-left py-2.5 px-3 w-36">Avance</th>
+      <th class="text-left py-2.5 px-3">Responsable</th><th class="py-2.5 px-3"></th></tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">${items.map(p => `
+      <tr class="hover:bg-gray-50/80 ${isOverdue(p) ? 'bg-red-50/40' : ''}">
+        <td class="py-2.5 px-3"><a href="#/projects/${p.id}" class="flex items-center gap-2.5 min-w-0">${logoProyecto(p)}
+          <div class="min-w-0"><div class="flex items-center gap-1 whitespace-nowrap"><span class="font-mono text-[10px] text-gray-400">${esc(p.code)}</span>${sellosVisibilidad(p)}</div>
+          <div class="font-semibold text-gray-900 truncate max-w-[220px] hover:text-primary-600">${esc(p.name)}</div></div></a></td>
+        <td class="py-2.5 px-3 text-gray-600 truncate max-w-[160px]">${esc(p.client || '—')}</td>
+        <td class="py-2.5 px-3">${projectStatusBadge(p.status)}${isOverdue(p) ? ' ' + overdueBadge() : ''}</td>
+        <td class="py-2.5 px-3">${priorityBadge(p.priority)}</td>
+        <td class="py-2.5 px-3 whitespace-nowrap">${projectTypeBadge(p.project_type)}</td>
+        <td class="py-2.5 px-3"><div class="flex items-center gap-2">${'<div class="flex-1">' + barraMini(p.progress) + '</div>'}<span class="text-xs text-gray-500 tabular-nums w-9 text-right">${p.progress || 0}%</span></div></td>
+        <td class="py-2.5 px-3 text-gray-500 text-xs truncate max-w-[120px]">${esc(p.responsible_name || 'Sin responsable')}</td>
+        <td class="py-2.5 px-2">${accionesProyecto(p, 15)}</td>
+      </tr>`).join('')}</tbody></table></div></div>`;
+}
+
+// Vista Compacta: tarjetas pequeñas para ver muchos proyectos a la vez
+function projectMini(p) {
+  return `<a href="#/projects/${p.id}" class="card p-3 hover:shadow-md transition-shadow block ${isOverdue(p) ? 'border-l-4 border-l-red-400' : ''}">
+    <div class="flex items-center gap-2 mb-2">${logoProyecto(p, 'w-8 h-8')}
+      <div class="min-w-0 flex-1"><div class="font-mono text-[10px] text-gray-400">${esc(p.code)}</div><div class="font-semibold text-sm text-gray-900 truncate">${esc(p.name)}</div></div></div>
+    <div class="flex items-center gap-1 flex-wrap mb-2">${projectStatusBadge(p.status)}${sellosVisibilidad(p)}</div>
+    <div class="flex items-center gap-2">${'<div class="flex-1">' + barraMini(p.progress) + '</div>'}<span class="text-[11px] text-gray-500 tabular-nums">${p.progress || 0}%</span></div>
+  </a>`;
+}
+
+// Vista Tablero: columnas por estado
+const COLUMNAS_ESTADO = [['pending', 'Pendientes', 'bg-amber-400'], ['active', 'Activos', 'bg-emerald-500'], ['paused', 'Pausados', 'bg-gray-400'],
+  ['finished_by_ti', 'Por revisar', 'bg-sky-500'], ['completed', 'Completados', 'bg-primary-600'], ['cancelled', 'Cancelados', 'bg-red-400']];
+function projectBoard(items) {
+  const cols = COLUMNAS_ESTADO.map(([k, t, c]) => ({ k, t, c, items: items.filter(p => p.status === k) }));
+  const otros = items.filter(p => !COLUMNAS_ESTADO.some(([k]) => k === p.status));
+  if (otros.length) cols.push({ k: 'otros', t: 'Otros', c: 'bg-gray-300', items: otros });
+  return `<div class="flex gap-3 overflow-x-auto pb-2">${cols.filter(col => col.items.length).map(col => `
+    <div class="w-72 shrink-0 bg-gray-100/70 rounded-xl p-2.5">
+      <div class="flex items-center gap-2 px-1 mb-2.5"><span class="w-2 h-2 rounded-full ${col.c}"></span>
+        <span class="text-xs font-bold text-gray-700 uppercase tracking-wide">${col.t}</span><span class="text-xs text-gray-400">${col.items.length}</span></div>
+      <div class="space-y-2">${col.items.map(p => `
+        <a href="#/projects/${p.id}" class="block bg-white rounded-lg border border-gray-200 p-2.5 hover:shadow-md transition-shadow ${isOverdue(p) ? 'border-l-4 border-l-red-400' : ''}">
+          <div class="flex items-start gap-2">${logoProyecto(p, 'w-8 h-8')}
+            <div class="min-w-0 flex-1"><div class="flex items-center gap-1"><span class="font-mono text-[10px] text-gray-400">${esc(p.code)}</span>${sellosVisibilidad(p)}</div>
+            <div class="font-semibold text-sm text-gray-900 truncate">${esc(p.name)}</div>
+            <div class="text-[11px] text-gray-500 truncate">${esc(p.client || '')}</div></div></div>
+          <div class="flex items-center gap-1.5 mt-2 flex-wrap">${priorityBadge(p.priority)}${projectTypeBadge(p.project_type)}</div>
+          <div class="flex items-center gap-2 mt-2">${'<div class="flex-1">' + barraMini(p.progress) + '</div>'}<span class="text-[11px] text-gray-500 tabular-nums">${p.progress || 0}%</span></div>
+        </a>`).join('')}</div>
+    </div>`).join('')}</div>`;
 }
 
 function renderProjectsSection() {
