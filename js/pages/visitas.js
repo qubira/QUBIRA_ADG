@@ -1,6 +1,6 @@
 import { api }      from '../api.js';
 import { getUser }  from '../state.js';
-import { pageHeader, spinner, icon, showModal } from '../utils.js';
+import { pageHeader, spinner, icon, showModal, toast, confirmModal } from '../utils.js';
 
 const QUALIFYING_CARGOS = ['SUPERVISOR', 'COORDINADOR', 'GERENTE'];
 const EVENT_TYPES = [
@@ -15,6 +15,7 @@ const EVENT_TYPES = [
   ['nav_click', 'Click en navegación'],
   ['job_apply_click', 'Click en Postular (empleo)'],
   ['job_apply_submit', 'Postulación enviada'],
+  ['click', 'Click en botón o enlace'],
 ];
 const EVENT_COLOR = {
   page_view: 'bg-gray-100 text-gray-600', case_click: 'bg-green-100 text-green-700',
@@ -23,6 +24,7 @@ const EVENT_COLOR = {
   scroll_depth: 'bg-gray-100 text-gray-600', time_on_page: 'bg-gray-100 text-gray-600',
   outbound_click: 'bg-amber-100 text-amber-700', nav_click: 'bg-gray-100 text-gray-600',
   job_apply_click: 'bg-amber-100 text-amber-700', job_apply_submit: 'bg-green-100 text-green-700',
+  click: 'bg-sky-100 text-sky-700',
 };
 const DONUT_COLORS = ['#2563eb', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6b7280'];
 const DEVICE_ICON = { 'Móvil': 'smartphone', 'Tablet': 'tablet_mac', 'Escritorio': 'computer', 'Desconocido': 'public' };
@@ -37,6 +39,8 @@ let _tab = 'sessions'; // 'sessions' | 'events'
 let _metricsTab = 'resumen'; // 'resumen' | 'adquisicion' | 'comportamiento'
 let _days = 30;
 let _summary = null;
+let _habitos = null;      // métricas de la pestaña Hábitos
+let _exclusiones = null;  // { rows, tu_ip }
 
 let _sRows = [];
 let _sTotal = 0;
@@ -96,11 +100,15 @@ function eventParams() {
 
 async function loadAll() {
   try {
-    const [summary, sessions] = await Promise.all([
+    const [summary, sessions, habitos, exclusiones] = await Promise.all([
       api.get('/analytics/summary', { days: _days }),
       api.get('/analytics/sessions', sessionParams()),
+      api.get('/analytics/habitos', { days: _days }).catch(() => null),
+      api.get('/analytics/exclusiones').catch(() => null),
     ]);
     _summary = summary;
+    _habitos = habitos;
+    _exclusiones = exclusiones;
     _sRows = sessions.rows;
     _sTotal = sessions.total;
     renderPage();
@@ -136,6 +144,7 @@ function renderPage() {
   c.innerHTML = rangeHtml() + metricsTabsHtml() + metricsContentHtml() + tabsHtml();
   document.getElementById('vis-range')?.addEventListener('change', e => { _days = Number(e.target.value); _sOffset = 0; _offset = 0; loadAll(); });
   wireMetricsTabs();
+  if (_metricsTab === 'habitos') wireHabitos();
   wireTabs();
   if (_tab === 'sessions') {
     renderSessionsTable();
@@ -178,6 +187,7 @@ function metricsTabsHtml() {
     ['resumen', 'Resumen', 'bar_chart'],
     ['adquisicion', 'Adquisición', 'public'],
     ['comportamiento', 'Comportamiento', 'bolt'],
+    ['habitos', 'Hábitos', 'insights'],
   ];
   return `
   <div class="flex gap-2 mb-6 flex-wrap">
@@ -187,7 +197,7 @@ function metricsTabsHtml() {
 }
 
 function wireMetricsTabs() {
-  ['resumen', 'adquisicion', 'comportamiento'].forEach(key => {
+  ['resumen', 'adquisicion', 'comportamiento', 'habitos'].forEach(key => {
     document.getElementById('vis-mtab-' + key)?.addEventListener('click', () => {
       if (_metricsTab === key) return;
       _metricsTab = key;
@@ -199,6 +209,7 @@ function wireMetricsTabs() {
 function metricsContentHtml() {
   if (_metricsTab === 'adquisicion') return adquisicionHtml();
   if (_metricsTab === 'comportamiento') return comportamientoHtml();
+  if (_metricsTab === 'habitos') return habitosHtml();
   return resumenHtml();
 }
 
@@ -341,6 +352,106 @@ function comportamientoHtml() {
     <h3 class="font-semibold text-gray-900 mb-3">Postulaciones por oferta (bolsa de trabajo)</h3>
     ${barListHtml(jobApplicationRows, 'Sin postulaciones en este rango.')}
   </div>`;
+}
+
+// ─── Hábitos: en vivo, cuándo visitan, qué pulsan, por dónde entran y salen ──
+const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+function habitosHtml() {
+  const h = _habitos;
+  if (!h) return '<div class="card p-8 text-center text-gray-400">Las métricas de hábitos aparecen cuando la API esté actualizada.</div>';
+  const pagina = p => p === '/' || p === '/index.html' || p === '/Index.html' ? 'Inicio' : String(p || '').replace(/^\//, '').replace(/\.html$/i, '');
+  return `
+  ${sectionHeading('insights', 'Hábitos de los visitantes', 'Quién está ahora, cuándo visitan, qué pulsan y por dónde entran y salen del sitio.')}
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+    ${statCard('sensors', 'En vivo ahora', h.en_vivo, 'bg-red-500', h.en_vivo ? (h.en_vivo_paginas || []).map(pagina).join(', ') : 'nadie en los últimos 5 min')}
+    ${statCard('auto_stories', 'Páginas por visitante', h.paginas_por_visitante, 'bg-primary-600', `últimos ${h.days} días`)}
+    ${statCard('timer', 'Duración media de la visita', formatSeconds(h.duracion_media_seg), 'bg-green-500', 'del primer al último evento')}
+    ${statCard('logout', 'Tasa de rebote', `${h.tasa_rebote}%`, 'bg-amber-500', 'vieron 1 página y no interactuaron')}
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card p-5"><h3 class="font-semibold text-gray-900 mb-1">¿Cuándo visitan?</h3><p class="text-xs text-gray-400 mb-3">Vistas de página por día y hora (hora de Lima)</p>${mapaCalorHtml(h.mapa_calor)}</div>
+    <div class="card p-5"><h3 class="font-semibold text-gray-900 mb-3">Visitantes por hora del día</h3>${porHoraHtml(h.visitantes_por_hora)}</div>
+  </div>
+  <div class="card p-5 mb-6"><h3 class="font-semibold text-gray-900 mb-1">Botones y enlaces más pulsados</h3><p class="text-xs text-gray-400 mb-3">Se registra cada clic en un botón o enlace del sitio</p>
+    ${barListHtml((h.top_clics || []).map(c => ({ label: `${c.label} · ${pagina(c.page)}`, value: c.total, title: `${c.visitantes} visitante(s)` })), 'Aún no hay clics registrados: empezarán a contarse desde ahora.')}</div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card p-5"><h3 class="font-semibold text-gray-900 mb-3">Páginas de entrada</h3>${barListHtml((h.paginas_entrada || []).map(p => ({ label: pagina(p.page), value: p.total })), 'Sin datos.')}</div>
+    <div class="card p-5"><h3 class="font-semibold text-gray-900 mb-3">Páginas de salida</h3>${barListHtml((h.paginas_salida || []).map(p => ({ label: pagina(p.page), value: p.total })), 'Sin datos.')}</div>
+  </div>
+  ${exclusionesHtml()}`;
+}
+
+function mapaCalorHtml(celdas) {
+  const m = {}; let max = 1;
+  (celdas || []).forEach(c => { m[`${c.dia}-${c.hora}`] = c.total; max = Math.max(max, c.total); });
+  const horas = Array.from({ length: 24 }, (_, i) => i);
+  return `<div class="overflow-x-auto"><table class="text-[10px] border-separate" style="border-spacing:2px">
+    <tr><td></td>${horas.map(hh => `<td class="text-gray-400 text-center">${hh % 3 === 0 ? hh : ''}</td>`).join('')}</tr>
+    ${DIAS_SEMANA.map((d, i) => `<tr><td class="text-gray-500 pr-1 font-medium">${d}</td>${horas.map(hh => {
+      const v = m[`${i + 1}-${hh}`] || 0;
+      return `<td title="${d} ${hh}:00 · ${v} vista(s)" style="width:16px;height:16px;border-radius:3px;background:${v ? `rgba(37,99,235,${(0.15 + 0.85 * v / max).toFixed(2)})` : '#f3f4f6'}"></td>`;
+    }).join('')}</tr>`).join('')}
+  </table></div>`;
+}
+
+function porHoraHtml(filas) {
+  const m = Object.fromEntries((filas || []).map(f => [f.hora, f.visitantes]));
+  const datos = Array.from({ length: 24 }, (_, hh) => ({ day: String(hh).padStart(2, '0') + ':00', total: m[hh] || 0 }));
+  const max = Math.max(1, ...datos.map(d => d.total));
+  const pico = datos.reduce((a, b) => (b.total > a.total ? b : a), datos[0]);
+  return `<div class="flex items-end gap-0.5 h-32">${datos.map(d => `<div class="flex-1 rounded-t ${d === pico && d.total ? 'bg-primary-600' : 'bg-primary-200'}" style="height:${Math.max(2, d.total / max * 100)}%" title="${d.day} · ${d.total} visitante(s)"></div>`).join('')}</div>
+    <div class="flex justify-between text-[10px] text-gray-400 mt-1"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span></div>
+    ${pico.total ? `<p class="text-sm text-gray-600 mt-3">Hora pico: <b>${pico.day}</b> con ${pico.total} visitante(s).</p>` : ''}`;
+}
+
+function exclusionesHtml() {
+  const x = _exclusiones;
+  if (!x) return '';
+  const yaExcluida = x.rows.some(r => r.ip === x.tu_ip);
+  return `
+  <div class="card p-5">
+    <div class="flex items-start justify-between gap-3 flex-wrap mb-3">
+      <div><h3 class="font-semibold text-gray-900">No contar mis visitas</h3>
+        <p class="text-xs text-gray-500 mt-0.5 max-w-xl">Las visitas desde estas IPs no se registran. Tu IP actual es <b class="font-mono">${esc(x.tu_ip || '—')}</b>. Si tu internet cambia de IP, abre el sitio una vez con <span class="font-mono">?no_track=1</span> al final de la dirección para excluir ese navegador de forma permanente.</p></div>
+      ${x.tu_ip && !yaExcluida ? `<button id="vis-excluir-mi-ip" class="btn-primary text-sm inline-flex items-center gap-1.5">${icon('block', 16)} Excluir mi IP actual</button>` : yaExcluida ? '<span class="badge bg-green-100 text-green-700">Tu IP ya está excluida</span>' : ''}
+    </div>
+    <div class="flex gap-2 mb-3 flex-wrap">
+      <input id="vis-ip-nueva" class="input text-sm flex-1 min-w-[180px] font-mono" placeholder="Otra IP, ej. 190.235.10.4">
+      <input id="vis-ip-nota" class="input text-sm flex-1 min-w-[180px]" placeholder="Nota (ej. Oficina)">
+      <button id="vis-excluir-ip" class="btn-secondary text-sm">Excluir</button>
+    </div>
+    ${x.rows.length ? `<div class="divide-y divide-gray-100">${x.rows.map(r => `
+      <div class="flex items-center gap-3 py-2 text-sm">
+        <span class="font-mono font-semibold text-gray-800">${esc(r.ip)}</span>
+        <span class="text-gray-500 flex-1 truncate">${esc(r.nota || '')}${r.creado_por_nombre ? ` · por ${esc(r.creado_por_nombre)}` : ''}</span>
+        ${r.eventos_previos ? `<span class="text-xs text-amber-600">${r.eventos_previos} evento(s) antiguos aún cuentan</span>` : ''}
+        <button class="vis-quitar-ip text-xs text-red-600 hover:underline" data-ip="${esc(r.ip)}">Quitar</button>
+      </div>`).join('')}</div>` : '<p class="text-sm text-gray-400">Todavía no hay IPs excluidas.</p>'}
+  </div>`;
+}
+
+async function excluirIp(ip, nota) {
+  const borrar = await confirmModal(`¿Borrar también las visitas que ya se registraron desde ${ip}? Así dejan de contar en las estadísticas actuales. Esto no se puede deshacer.`,
+    { title: 'Excluir IP', confirmLabel: 'Sí, borrar también', danger: true });
+  try {
+    const r = await api.post('/analytics/exclusiones', { ip, nota, borrar_previas: borrar === true });
+    toast(r.borrados ? `IP excluida y ${r.borrados} evento(s) antiguos borrados` : 'IP excluida: sus visitas ya no se contarán');
+    loadAll();
+  } catch (e) { toast(e.message || 'No se pudo excluir la IP', 'error'); }
+}
+
+function wireHabitos() {
+  document.getElementById('vis-excluir-mi-ip')?.addEventListener('click', () => excluirIp(_exclusiones.tu_ip, 'Mi equipo (desde ADG)'));
+  document.getElementById('vis-excluir-ip')?.addEventListener('click', () => {
+    const ip = document.getElementById('vis-ip-nueva').value.trim();
+    if (!ip) return toast('Escribe la IP a excluir', 'error');
+    excluirIp(ip, document.getElementById('vis-ip-nota').value.trim());
+  });
+  document.querySelectorAll('.vis-quitar-ip').forEach(b => b.addEventListener('click', async () => {
+    try { await api.delete(`/analytics/exclusiones/${encodeURIComponent(b.dataset.ip)}`); toast('IP quitada: sus visitas volverán a contarse'); loadAll(); }
+    catch (e) { toast(e.message || 'No se pudo quitar', 'error'); }
+  }));
 }
 
 function formatSeconds(totalSeconds) {
