@@ -8,6 +8,7 @@ import { render as renderProjectDetail } from './pages/project-detail.js';
 import { render as renderContracts }   from './pages/contracts.js';
 import { render as renderConfig }      from './pages/configuracion.js';
 import { render as renderCalendario }  from './pages/calendario.js';
+import { render as renderJerarquia }  from './pages/jerarquia.js';
 import { render as renderAuditoria }   from './pages/auditoria.js';
 import { render as renderVisitas }     from './pages/visitas.js?v=46';
 import { render as renderCostoHerramientas } from './pages/costo-herramientas.js';
@@ -49,6 +50,8 @@ const QUALIFYING_AUDIT_CARGOS = ['SUPERVISOR', 'COORDINADOR', 'GERENTE'];
 function canViewAudit(user) {
   if (!user) return false;
   if ((user.nivel_acceso || 0) >= 100) return true;
+  // Por nivel jerárquico: N1 a N5 (Supervisor o superior)
+  if (user.nivel_cargo) return user.nivel_cargo <= 5;
   return QUALIFYING_AUDIT_CARGOS.includes(String(user.cargo || '').toUpperCase());
 }
 
@@ -57,6 +60,7 @@ const NAV = [
   { path: '/projects',   iconName: 'folder',        label: 'Proyectos' },
   { path: '/qubira-web', iconName: 'public',        label: 'Qubira Web' },
   { path: '/calendario', iconName: 'calendar_month', label: 'Calendario' },
+  { path: '/jerarquia',  iconName: 'account_tree',  label: 'Mapa jerárquico' },
   { path: '/contracts',  iconName: 'description',   label: 'Contratos & Proformas' },
   { path: '/calidad',    iconName: 'verified',      label: 'Calidad' },
   { path: '/config',     iconName: 'settings',      label: 'Configuración' },
@@ -182,6 +186,7 @@ addRoute('/projects',        () => renderProjects());
 addRoute('/projects/:id',    p  => renderProjectDetail(p));
 addRoute('/qubira-web',      () => renderQubiraWeb());
 addRoute('/calendario',      () => renderCalendario());
+addRoute('/jerarquia',       () => renderJerarquia());
 addRoute('/auditoria',       () => renderAuditoria());
 addRoute('/visitas',         () => renderVisitas());
 addRoute('/contracts',       () => renderContracts());
