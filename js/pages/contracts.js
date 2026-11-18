@@ -1,10 +1,10 @@
 import { api }                                         from '../api.js';
-import { toast, showModal, closeModal, confirmModal, pageHeader,
+import { toast, showModal, closeModal, confirmModal, pedirMotivo, pageHeader,
          contractStatusBadge, fmtDate, spinner, icon,
          previewFile }                                 from '../utils.js';
 
 const TYPE_LABEL = { contract:'Contrato', proforma:'Proforma', quote:'Cotización', addendum:'Adendum', other:'Otro' };
-const STATUS_OPTS = [['draft','Borrador'],['sent','Enviado'],['approved','Aprobado'],['signed','Firmado'],['rejected','Rechazado']];
+const STATUS_OPTS = [['draft','Borrador'],['sent','Enviado'],['approved','Aprobado'],['signed','Firmado'],['rejected','Rechazado'],['anulado','Anulado']];
 
 let _contracts = [], _projects = [];
 let _filter = { type: '', status: '', project_id: '' };
@@ -83,9 +83,11 @@ function renderPage() {
   }));
   document.querySelectorAll('.del-c').forEach(btn => btn.addEventListener('click', async () => {
     const ct = _contracts.find(x => String(x.id) === btn.dataset.id);
-    if (!ct || !(await confirmModal(`¿Eliminar "${ct.title}"?`))) return;
-    try { await api.delete(`/contracts/${ct.id}`); toast('Eliminado'); load(); }
-    catch { toast('Error', 'error'); }
+    if (!ct) return;
+    const motivo = await pedirMotivo(`«${esc(ct.title)}»${ct.codigo ? ' (' + esc(ct.codigo) + ')' : ''} quedará ANULADO: no se borra y su número no se reutiliza.`, { title: 'Anular documento' });
+    if (!motivo) return;
+    try { await api.delete(`/contracts/${ct.id}?motivo=${encodeURIComponent(motivo)}`); toast('Anulado'); load(); }
+    catch (err) { toast(err.message || 'Error', 'error'); }
   }));
 
   document.querySelectorAll('.preview-c-btn').forEach(btn => btn.addEventListener('click', async () => {
@@ -99,6 +101,7 @@ function renderPage() {
 function contractRow(c) {
   return `<tr class="hover:bg-gray-50">
     <td class="px-4 py-3">
+      ${c.codigo ? `<p class="text-xs font-mono text-primary-700">${esc(c.codigo)}</p>` : ''}
       <p class="font-medium text-gray-900">${esc(c.title)}</p>
       ${c.notes ? `<p class="text-xs text-gray-400 truncate max-w-[200px]">${esc(c.notes)}</p>` : ''}
     </td>
@@ -120,7 +123,7 @@ function contractRow(c) {
     <td class="px-4 py-3">
       <div class="flex gap-1 justify-end">
         <button class="edit-c p-1.5 rounded hover:bg-gray-100 text-gray-400" data-id="${c.id}">${icon('edit',16)}</button>
-        <button class="del-c p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-600" data-id="${c.id}">${icon('delete',16)}</button>
+        ${c.status === 'anulado' ? '' : `<button class="del-c p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-600" data-id="${c.id}" title="Anular (con motivo)">${icon('block',16)}</button>`}
       </div>
     </td>
   </tr>`;

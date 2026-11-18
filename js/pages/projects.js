@@ -144,12 +144,12 @@ function renderPage() {
       const id = btn.dataset.id;
       const p = _projects.find(x => String(x.id) === id);
       if (!p) return;
-      if (!(await confirmModal(`¿Eliminar el proyecto "${esc(p.name)}"? Esta acción no se puede deshacer.`))) return;
+      if (!(await confirmModal(`¿Desactivar el proyecto "${esc(p.name)}"${p.code ? ' (' + esc(p.code) + ')' : ''}? No se elimina: queda «cancelado», conserva su código, requerimientos, actas y contratos, y se puede reactivar editando su estado.`, { title: 'Desactivar proyecto', confirmLabel: 'Desactivar' }))) return;
       try {
-        await api.delete(`/projects/${id}`);
-        toast('Proyecto eliminado');
+        const r = await api.delete(`/projects/${id}`);
+        toast(r?.message || 'Proyecto desactivado');
         load();
-      } catch { toast('Error al eliminar', 'error'); }
+      } catch (err) { toast(err.message || 'Error al desactivar', 'error'); }
     });
   });
 }
