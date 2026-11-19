@@ -4,6 +4,7 @@
    - Configuración: datos de la empresa y catálogo de tipos (firmante, activo).
    El código lo asigna siempre el servidor al Emitir. */
 import { api } from '../api.js';
+import { PANEL } from '../panel.js';
 import { getUser } from '../state.js';
 import { pageHeader, spinner, showModal, closeModal, toast, icon, fmtDate, fmtDateTime } from '../utils.js';
 
@@ -222,7 +223,7 @@ function abrirNuevo(pre = {}) {
   showModal(pre.reemplaza_a ? `Reemplazar ${esc(pre.reemplaza_a)}` : 'Nuevo documento', `
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
       <div><label class="label">Tipo</label><select id="n-tipo" class="input w-full" ${pre.reemplaza_a ? 'disabled' : ''}>${opt(tipos.map(t => [t.sigla, `${t.sigla} · ${t.nombre}`]), pre.tipo || 'INF')}</select></div>
-      <div><label class="label">Área dueña</label><select id="n-area" class="input w-full" ${pre.reemplaza_a ? 'disabled' : ''}>${opt(areas, pre.area || 'ADG')}</select></div>
+      <div><label class="label">Área dueña</label><select id="n-area" class="input w-full" ${pre.reemplaza_a ? 'disabled' : ''}>${opt(areas, pre.area || PANEL)}</select></div>
       <div class="md:col-span-2"><label class="label">Título</label><input id="n-titulo" class="input w-full" value="${esc(pre.titulo || '')}"></div>
       <div class="md:col-span-2"><label class="label">Detalle <span class="text-gray-400 font-normal">(Calidad, Seguridad, Laboral, Proyecto, Externo, Adenda…)</span></label><input id="n-detalle" class="input w-full" value="${esc(pre.detalle || '')}"></div>
       <div id="n-destino-box" class="hidden"><label class="label">Área destino</label><select id="n-destino" class="input w-full"><option value="">—</option>${opt(areas, '')}</select></div>

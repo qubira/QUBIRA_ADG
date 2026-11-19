@@ -17,7 +17,7 @@ function canEditCosts() {
   const u = getUser();
   const area = String(u?.area || u?.rol || '').toUpperCase();
   if (area === 'TI' || area === 'OTI') return false;
-  return area === 'ADG' || area === 'OPP' || (u?.nivel_acceso || 0) >= 100;
+  return area === 'ADG' || area === 'GG' || area === 'OPP' || (u?.nivel_acceso || 0) >= 100;
 }
 
 let _items = []; // Fichas técnicas registradas (ti.tech_plan_info)

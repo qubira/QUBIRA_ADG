@@ -4,7 +4,8 @@ import { pageHeader, spinner } from '../utils.js';
 
 const AREAS = [['ADG','ADG'],['TI','OTI'],['RRHH','ORH'],['SOPORTE','Soporte']];
 // Áreas desde el catálogo de ORH (fuente única); esta lista queda solo como respaldo
-(window.__qbListasAreas ||= []).push([AREAS, 'ADG']);
+import { PANEL } from '../panel.js';
+(window.__qbListasAreas ||= []).push([AREAS, PANEL]);
 const QUALIFYING_CARGOS = ['SUPERVISOR', 'COORDINADOR', 'GERENTE'];
 const ACTION_LABEL = { view: 'Consultó', create: 'Creó', update: 'Actualizó', delete: 'Eliminó', login: 'Inició sesión', logout: 'Cerró sesión' };
 const ACTION_COLOR = {
