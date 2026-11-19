@@ -227,20 +227,47 @@ function abrirNuevo(pre = {}) {
       <div class="md:col-span-2"><label class="label">Detalle <span class="text-gray-400 font-normal">(Calidad, Seguridad, Laboral, Proyecto, Externo, Adenda…)</span></label><input id="n-detalle" class="input w-full" value="${esc(pre.detalle || '')}"></div>
       <div id="n-destino-box" class="hidden"><label class="label">Área destino</label><select id="n-destino" class="input w-full"><option value="">—</option>${opt(areas, '')}</select></div>
       <div id="n-elevar-box" class="hidden flex items-end"><label class="text-sm flex items-center gap-2"><input type="checkbox" id="n-elevar"> Elevar a la Alta Dirección (ADG aprueba al final)</label></div>
+      <div id="n-rev-box" class="hidden md:col-span-2">
+        <label class="label">Áreas que revisan <span class="text-gray-400 font-normal">(opcional · en el orden en que las marques)</span></label>
+        <div class="flex flex-wrap gap-2" id="n-revisores">${cat.areas.map(a => `<label class="text-xs flex items-center gap-1 px-2 py-1 border border-gray-200 rounded-lg cursor-pointer"><input type="checkbox" value="${esc(a.sigla)}"> ${esc(a.sigla)}</label>`).join('')}</div>
+        <p class="text-xs text-gray-500 mt-1" id="n-ruta-previa"></p>
+      </div>
+      <div><label class="label">Código anterior <span class="text-gray-400 font-normal">(opcional, si ya tenía uno)</span></label><input id="n-anterior" class="input w-full" placeholder="IT000027 - IE"></div>
       <div><label class="label">Referencia <span class="text-gray-400 font-normal">(opcional: contrato original, proforma…)</span></label><input id="n-ref" class="input w-full" placeholder="ODN-PRF-2026-001"></div>
       <div><label class="label">Enlace al documento <span class="text-gray-400 font-normal">(Drive, opcional)</span></label><input id="n-enlace" class="input w-full" placeholder="https://drive.google.com/…"></div>
     </div>
     <p class="text-xs text-gray-500 mt-3">El código se asigna al <b>Emitir</b>. Un borrador no lleva código y solo quien lo creó puede eliminarlo.</p>`, 'lg', `
     <div class="flex justify-end gap-2"><button id="n-borrador" class="btn-secondary">Guardar borrador</button><button id="n-emitir" class="btn-primary">Emitir</button></div>`);
+  // Áreas revisoras en el orden en que se marcan
+  const orden = [];
+  const rutaPrevia = () => {
+    const area = val('n-area'), elevar = document.getElementById('n-elevar').checked;
+    const revs = orden.filter(a => a !== area);
+    document.getElementById('n-ruta-previa').textContent = revs.length
+      ? `Ruta: ${area} crea → ${revs.map(a => a + ' revisa').join(' → ')} → ${elevar ? 'ADG' : area} aprueba`
+      : 'Sin áreas revisoras: se usa la ruta por defecto del tipo.';
+  };
+  document.querySelectorAll('#n-revisores input').forEach(ch => ch.addEventListener('change', () => {
+    const i = orden.indexOf(ch.value);
+    if (ch.checked && i < 0) orden.push(ch.value); else if (!ch.checked && i >= 0) orden.splice(i, 1);
+    rutaPrevia();
+  }));
   const ver = () => {
     const t = val('n-tipo');
     document.getElementById('n-destino-box').classList.toggle('hidden', t !== 'SOL');
-    document.getElementById('n-elevar-box').classList.toggle('hidden', t !== 'INF');
+    document.getElementById('n-elevar-box').classList.toggle('hidden', !['INF', 'PLN'].includes(t));
+    document.getElementById('n-rev-box').classList.toggle('hidden', !['INF', 'PLN'].includes(t));
+    rutaPrevia();
   };
-  document.getElementById('n-tipo').addEventListener('change', ver); ver();
+  document.getElementById('n-tipo').addEventListener('change', ver);
+  document.getElementById('n-area').addEventListener('change', rutaPrevia);
+  document.getElementById('n-elevar').addEventListener('change', rutaPrevia);
+  ver();
   const enviar = async emitir => {
-    const body = { tipo: val('n-tipo'), area: val('n-area'), titulo: val('n-titulo'), detalle: val('n-detalle'), area_destino: val('n-destino'),
-      elevar_adg: document.getElementById('n-elevar').checked, referencia: val('n-ref'), enlace_externo: val('n-enlace'), reemplaza_a: pre.reemplaza_a, emitir };
+    const t = val('n-tipo');
+    const body = { tipo: t, area: val('n-area'), titulo: val('n-titulo'), detalle: val('n-detalle'), area_destino: val('n-destino'),
+      elevar_adg: ['INF', 'PLN'].includes(t) && document.getElementById('n-elevar').checked, referencia: val('n-ref'), enlace_externo: val('n-enlace'),
+      codigo_anterior: val('n-anterior'), revisores: ['INF', 'PLN'].includes(t) ? orden.filter(a => a !== val('n-area')) : [], reemplaza_a: pre.reemplaza_a, emitir };
     try {
       const r = await api.post('/documentos', body);
       toast(r.data.codigo ? `Emitido: ${r.data.codigo}` : 'Borrador guardado');
