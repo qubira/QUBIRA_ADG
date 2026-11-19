@@ -21,6 +21,7 @@ const PAGE_SIZE = 50;
    pueden ver otras áreas / un rango de fechas distinto a hoy) — se lee
    de la respuesta, no se asume nada del lado del cliente. */
 let _canSeeOtherAreas = false;
+let _veDST = true; // GG no ve la auditoría de DST (solo ADG); lo decide el backend
 let _filters = { area: '', action_type: '', date_from: todayISO(), date_to: '', q: '' };
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
@@ -70,6 +71,8 @@ async function load(append = false) {
     _rows = append ? [..._rows, ...data.rows] : data.rows;
     _total = data.total;
     _canSeeOtherAreas = !!data.canSeeOtherAreas;
+    _veDST = data.veDST !== false;
+    if (!_veDST && _filters.area === 'DST') _filters.area = '';
     if (!_canSeeOtherAreas) { _filters.date_from = todayISO(); _filters.date_to = ''; _filters.area = ''; }
     renderPage();
   } catch (err) {
@@ -86,7 +89,7 @@ function renderPage() {
     ${_canSeeOtherAreas ? `
     <select id="f-area" class="input w-auto">
       <option value="">Mi área</option>
-      ${AREAS.map(([k,l]) => `<option value="${k}" ${_filters.area===k?'selected':''}>${l}</option>`).join('')}
+      ${AREAS.filter(([k]) => _veDST || k !== 'DST').map(([k,l]) => `<option value="${k}" ${_filters.area===k?'selected':''}>${l}</option>`).join('')}
       <option value="ALL" ${_filters.area==='ALL'?'selected':''}>Todas las áreas</option>
     </select>` : ''}
     <select id="f-action" class="input w-auto">
