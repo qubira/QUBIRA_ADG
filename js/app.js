@@ -6,6 +6,7 @@ import { render as renderLogin }       from './pages/login.js';
 import { render as renderDashboard }   from './pages/dashboard.js';
 import { render as renderProjects }    from './pages/projects.js?v=48';
 import { render as renderProjectDetail } from './pages/project-detail.js';
+import { render as renderFlujo } from './pages/flujo.js';
 import { render as renderContracts }   from './pages/contracts.js';
 import { render as renderConfig }      from './pages/configuracion.js';
 import { render as renderCalendario }  from './pages/calendario.js';
@@ -60,6 +61,7 @@ function canViewAudit(user) {
 const NAV = [
   { path: '/',           iconName: 'dashboard',     label: 'Dashboard',            exact: true },
   { path: '/projects',   iconName: 'folder',        label: 'Proyectos' },
+  { path: '/flujo',      iconName: 'alt_route',     label: 'Flujo de proyectos' },
   { path: '/qubira-web', iconName: 'public',        label: 'Qubira Web' },
   { path: '/calendario', iconName: 'calendar_month', label: 'Calendario' },
   { path: '/jerarquia',  iconName: 'account_tree',  label: 'Mapa jerárquico' },
@@ -187,6 +189,7 @@ addRoute('/',                () => renderDashboard());
 addRoute('/login',           () => renderLogin());
 addRoute('/projects',        () => renderProjects());
 addRoute('/projects/:id',    p  => renderProjectDetail(p));
+addRoute('/flujo',           () => renderFlujo());
 addRoute('/qubira-web',      () => renderQubiraWeb());
 addRoute('/calendario',      () => renderCalendario());
 addRoute('/jerarquia',       () => renderJerarquia());

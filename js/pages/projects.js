@@ -399,6 +399,18 @@ function openModal(editing = null) {
               <div id="client-dropdown" class="combo-dropdown hidden absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto z-20"></div>
             </div>
           </div>
+          ${editing ? '' : `<div class="col-span-2">
+            <label class="label">Origen del proyecto</label>
+            <select class="input" name="ruta_flujo" id="ruta-flujo-select">
+              <option value="A">Producto propio (Ruta A): lo propone ADG o GG</option>
+              <option value="B">Proyecto para un cliente (Ruta B): nace de una venta de ODN</option>
+            </select>
+            <div id="contrato-flujo-wrap" class="hidden mt-2">
+              <input class="input" name="contrato_codigo" placeholder="Código del contrato con el cliente (ej. ODN-CTR-2026-004)">
+              <p class="text-xs text-gray-500 mt-1">El proyecto se abre cuando ese contrato esté aprobado por ADG.</p>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">El proyecto entra al flujo de etapas y puertas. ODN lo ve recién cuando ADG lo libera.</p>
+          </div>`}
           <div>
             <label class="label">Tipo de Documento</label>
             <div class="flex gap-1.5">
@@ -711,6 +723,10 @@ function openModal(editing = null) {
   wireRichEditor('req-desc-nonfunctional');
   document.getElementById('req-add-functional').addEventListener('click', () => addRequirement('functional'));
   document.getElementById('req-add-nonfunctional').addEventListener('click', () => addRequirement('non_functional'));
+
+  const rutaSel = document.getElementById('ruta-flujo-select');
+  if (rutaSel) rutaSel.addEventListener('change', () => document.getElementById('contrato-flujo-wrap').classList.toggle('hidden', rutaSel.value !== 'B'));
+  if (!editing) { const sc = document.getElementById('show-to-comercial-check'); if (sc) { sc.checked = false; sc.disabled = true; sc.title = 'Se activa cuando ADG libera el producto en el flujo'; } }
 
   document.getElementById('project-form').addEventListener('submit', async e => {
     e.preventDefault();
