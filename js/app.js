@@ -20,6 +20,7 @@ import { render as renderCostoHerramientas } from './pages/costo-herramientas.js
 import { render as renderInfoTecnico }       from './pages/info-tecnico.js?v=33';
 import { render as renderCalidad }           from './pages/calidad.js';
 import { render as renderQubiraWeb }         from './pages/qubira-web.js?v=44';
+import { render as renderInformesEstado }    from './pages/informes-estado.js';
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 const exactRoutes = {};
@@ -65,8 +66,9 @@ const NAV = [
   { grupo: 'General', path: '/calendario', iconName: 'calendar_month', label: 'Calendario' },
   { grupo: 'Proyectos', path: '/projects',   iconName: 'folder',        label: 'Proyectos' },
   { grupo: 'Proyectos', path: '/flujo',      iconName: 'alt_route',     label: 'Flujo de proyectos' },
-  { grupo: 'Proyectos', path: '/calidad',    iconName: 'verified',      label: 'Calidad' },
-  { grupo: 'Proyectos', path: '/info-tecnico', iconName: 'memory',   label: 'Info Técnico' },
+  { grupo: 'Proyectos', path: '/calidad',          iconName: 'verified',      label: 'Calidad' },
+  { grupo: 'Proyectos', path: '/informes-estado',  iconName: 'summarize',     label: 'Informes de Estado' },
+  { grupo: 'Proyectos', path: '/info-tecnico',     iconName: 'memory',        label: 'Info Técnico' },
   { grupo: 'Proyectos', path: '/costo-herramientas', iconName: 'payments', label: 'Costo de herramientas (OPP)' },
   { grupo: 'Clientes y web', path: '/contracts',  iconName: 'description',   label: 'Contratos & Proformas' },
   { grupo: 'Clientes y web', path: '/casos',      iconName: 'support_agent', label: 'Casos de soporte' },
@@ -215,6 +217,8 @@ addRoute('/visitas',         () => renderVisitas());
 addRoute('/contracts',       () => renderContracts());
 addRoute('/calidad',         () => renderCalidad());
 addRoute('/calidad/:id',     p  => renderCalidad(p));
+addRoute('/informes-estado',      () => renderInformesEstado());
+addRoute('/informes-estado/:id',  p  => renderInformesEstado(p));
 addRoute('/config',          () => renderConfig());
 addRoute('/costo-herramientas', () => renderCostoHerramientas());
 addRoute('/info-tecnico',    () => renderInfoTecnico());
