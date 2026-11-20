@@ -61,23 +61,34 @@ function canViewAudit(user) {
 }
 
 const NAV = [
-  { path: '/',           iconName: 'dashboard',     label: 'Dashboard',            exact: true },
-  { path: '/projects',   iconName: 'folder',        label: 'Proyectos' },
-  { path: '/flujo',      iconName: 'alt_route',     label: 'Flujo de proyectos' },
-  { path: '/casos',      iconName: 'support_agent', label: 'Casos de soporte' },
-  { path: '/sgi',        iconName: 'verified_user', label: 'Sistema de gestión' },
-  { path: '/qubira-web', iconName: 'public',        label: 'Qubira Web' },
-  { path: '/calendario', iconName: 'calendar_month', label: 'Calendario' },
-  { path: '/jerarquia',  iconName: 'account_tree',  label: 'Mapa jerárquico' },
-  { path: '/documentos', iconName: 'inventory_2',   label: 'Registro de documentos' },
-  { path: '/contracts',  iconName: 'description',   label: 'Contratos & Proformas' },
-  { path: '/calidad',    iconName: 'verified',      label: 'Calidad' },
-  { path: '/config',     iconName: 'settings',      label: 'Configuración' },
-  { path: '/costo-herramientas', iconName: 'payments', label: 'Costo por OPP HERRAMIENTAS' },
-  { path: '/info-tecnico', iconName: 'memory',   label: 'Info Técnico' },
-  { path: '/visitas',    iconName: 'bar_chart',     label: 'Visitas',    visible: canViewAudit },
-  { path: '/auditoria',  iconName: 'fact_check',    label: 'Auditoría',  visible: canViewAudit },
+  { grupo: 'General', path: '/',           iconName: 'dashboard',     label: 'Dashboard',            exact: true },
+  { grupo: 'General', path: '/calendario', iconName: 'calendar_month', label: 'Calendario' },
+  { grupo: 'Proyectos', path: '/projects',   iconName: 'folder',        label: 'Proyectos' },
+  { grupo: 'Proyectos', path: '/flujo',      iconName: 'alt_route',     label: 'Flujo de proyectos' },
+  { grupo: 'Proyectos', path: '/calidad',    iconName: 'verified',      label: 'Calidad' },
+  { grupo: 'Proyectos', path: '/info-tecnico', iconName: 'memory',   label: 'Info Técnico' },
+  { grupo: 'Proyectos', path: '/costo-herramientas', iconName: 'payments', label: 'Costo de herramientas (OPP)' },
+  { grupo: 'Clientes y web', path: '/contracts',  iconName: 'description',   label: 'Contratos & Proformas' },
+  { grupo: 'Clientes y web', path: '/casos',      iconName: 'support_agent', label: 'Casos de soporte' },
+  { grupo: 'Clientes y web', path: '/qubira-web', iconName: 'public',        label: 'Qubira Web' },
+  { grupo: 'Clientes y web', path: '/visitas',    iconName: 'bar_chart',     label: 'Visitas',    visible: canViewAudit },
+  { grupo: 'Gestión', path: '/sgi',        iconName: 'verified_user', label: 'Sistema de gestión' },
+  { grupo: 'Gestión', path: '/documentos', iconName: 'inventory_2',   label: 'Registro de documentos' },
+  { grupo: 'Gestión', path: '/jerarquia',  iconName: 'account_tree',  label: 'Mapa jerárquico' },
+  { grupo: 'Administración', path: '/config',     iconName: 'settings',      label: 'Configuración' },
+  { grupo: 'Administración', path: '/auditoria',  iconName: 'fact_check',    label: 'Auditoría',  visible: canViewAudit },
 ];
+
+/* Menú por secciones: un título por grupo (solo los grupos con opciones visibles) */
+function navAgrupado(user, currentHash, collapsed) {
+  const visibles = NAV.filter(n => !n.visible || n.visible(user));
+  return [...new Set(visibles.map(n => n.grupo))].map((g, i) => {
+    const cab = collapsed
+      ? (i ? '<div class="border-t border-gray-800 mx-2 my-2"></div>' : '')
+      : `<p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-3 ${i ? 'pt-4' : ''} pb-1">${g}</p>`;
+    return cab + visibles.filter(n => n.grupo === g).map(n => navLink(n, currentHash)).join('');
+  }).join('');
+}
 
 function isActive(path, currentHash, exact) {
   if (exact) return currentHash === path;
@@ -117,8 +128,7 @@ function renderSidebar(currentHash) {
 
     <!-- Nav -->
     <nav class="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-      ${!collapsed ? '<p class="text-xs font-semibold text-gray-600 uppercase tracking-wider px-3 mb-2">Principal</p>' : ''}
-      ${NAV.filter(n => !n.visible || n.visible(user)).map(n => navLink(n, currentHash)).join('')}
+      ${navAgrupado(user, currentHash, collapsed)}
     </nav>
 
     <!-- User -->
