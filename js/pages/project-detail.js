@@ -408,7 +408,7 @@ function renderTabContent() {
         <div class="flex items-center justify-between">
           <div>
             <h3 class="text-base font-bold text-gray-900">Actas de Calidad & Auditoría</h3>
-            <p class="text-xs text-gray-500">Auditorías técnicas de Seguridad (SEC), Calidad de Software (CAL) y Reglas de Negocio (RN)</p>
+            <p class="text-xs text-gray-500">Comisión de prueba (OTI) y auditorías de Seguridad (DST), Calidad de Software (GG) y Reglas de Negocio (ODACL)</p>
           </div>
           <button id="btn-nueva-auditoria-proj" class="btn-primary text-xs inline-flex items-center gap-1.5 py-2 px-3">
             ${icon('add_circle', 16)} Ir al Gestor de Calidad
@@ -426,12 +426,12 @@ function renderTabContent() {
             ${_auditorias.map(a => {
               const res = a.resumen || { severidad: {} };
               const s = res.severidad || {};
-              const badgeClass = a.tipo === 'seguridad' ? 'bg-indigo-100 text-indigo-700' : a.tipo === 'calidad' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700';
+              const badgeClass = a.tipo === 'seguridad' ? 'bg-indigo-100 text-indigo-700' : a.tipo === 'calidad' ? 'bg-emerald-100 text-emerald-700' : a.tipo === 'comision' ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700';
               return `
                 <div class="p-4 flex flex-wrap items-center justify-between gap-3 hover:bg-gray-50/70 transition-colors">
                   <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${badgeClass} shrink-0">
-                      ${a.tipo === 'seguridad' ? 'SEC' : a.tipo === 'calidad' ? 'CAL' : 'RN'}
+                      ${a.tipo === 'seguridad' ? 'SEC' : a.tipo === 'calidad' ? 'CAL' : a.tipo === 'comision' ? 'COM' : 'RN'}
                     </div>
                     <div>
                       <div class="flex items-center gap-2">
