@@ -6,7 +6,7 @@ import { toast, showModal, closeModal, confirmModal,
          contractStatusBadge, fmtDate, fmtDateTime,
          fmtRelative, fmtMoney, spinner, icon,
          isOverdue, overdueBadge, previewFile,
-         sanitizeRichText, richTextToolbar, wireRichEditor } from '../utils.js';
+         sanitizeRichText, ESTADOS_IMPLEMENTACION, richTextToolbar, wireRichEditor } from '../utils.js';
 
 let _id, _project, _contracts, _documents, _messages, _emails, _activities, _requirements, _auditorias = [];
 let _tab = 'overview';
@@ -1587,6 +1587,16 @@ function reqLabel(r, index) {
   return `${r.type === 'non_functional' ? 'RNF' : 'RF'}${index + 1}`;
 }
 
+function selectorEstadoRequisito(requisito, label, editable) {
+  const estado = requisito.implementation_status || 'pendiente';
+  return `<label class="inline-flex flex-wrap items-center gap-2 text-xs text-gray-500">
+    Estado
+    <select class="input req-implementation-status w-auto max-w-full text-xs" data-id="${esc(requisito.id)}" aria-label="Estado de ${label}" ${editable ? '' : 'disabled'}>
+      ${Object.entries(ESTADOS_IMPLEMENTACION).map(([valor, texto]) => `<option value="${valor}" ${valor === estado ? 'selected' : ''}>${texto}</option>`).join('')}
+    </select>
+  </label>`;
+}
+
 function requirementRow(r, index, total) {
   const label = reqLabel(r, index);
   if (r.id === _editingReqId) {
@@ -1603,7 +1613,8 @@ function requirementRow(r, index, total) {
     </div>`;
   }
   return `
-  <div class="flex items-start gap-2 p-2.5 rounded-lg border border-gray-100">
+  <div class="rounded-lg border border-gray-100 p-2.5">
+  <div class="flex items-start gap-2">
     <div class="flex flex-col shrink-0 -my-0.5">
       <button type="button" class="req-move-up rounded text-gray-300 hover:text-primary-600 disabled:opacity-25 disabled:pointer-events-none" data-id="${r.id}" ${index === 0 ? 'disabled' : ''} title="Subir">${icon('keyboard_arrow_up',16)}</button>
       <button type="button" class="req-move-down rounded text-gray-300 hover:text-primary-600 disabled:opacity-25 disabled:pointer-events-none" data-id="${r.id}" ${index === total - 1 ? 'disabled' : ''} title="Bajar">${icon('keyboard_arrow_down',16)}</button>
@@ -1613,6 +1624,8 @@ function requirementRow(r, index, total) {
     <span class="text-xs text-gray-400 shrink-0 mt-1.5">%</span>
     <button class="req-edit-btn text-gray-300 hover:text-primary-600 shrink-0" data-id="${r.id}">${icon('edit',15)}</button>
     <button class="req-del-btn text-gray-300 hover:text-red-500 shrink-0" data-id="${r.id}">${icon('delete',16)}</button>
+  </div>
+  <div class="mt-2">${selectorEstadoRequisito(r, label, true)}</div>
   </div>`;
 }
 
@@ -1636,6 +1649,26 @@ async function refreshProjectProgress() {
 }
 
 function wireRequirementsTab() {
+  document.querySelectorAll('.req-implementation-status:not(:disabled)').forEach(select => {
+    select.addEventListener('change', async () => {
+      const requisito = _requirements.find(r => String(r.id) === select.dataset.id);
+      if (!requisito) return;
+      const anterior = requisito.implementation_status || 'pendiente';
+      const estado = select.value;
+      select.disabled = true;
+      try {
+        const resultado = await api.put(`/requirements/${requisito.id}`, { implementation_status: estado });
+        if (resultado?.implementation_status !== estado) throw new Error('No se pudo guardar el estado del requisito');
+        requisito.implementation_status = estado;
+      } catch (e) {
+        select.value = anterior;
+        toast(e.message, 'error');
+      } finally {
+        select.disabled = false;
+      }
+    });
+  });
+
   document.querySelectorAll('.req-move-up').forEach(btn => {
     btn.addEventListener('click', () => moveRequirement(btn.dataset.id, 'up'));
   });
