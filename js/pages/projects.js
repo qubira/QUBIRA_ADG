@@ -8,6 +8,8 @@ let _projects = [], _users = [], _docTypes = [], _families = [], _filter = { sta
 let _clients = [], _docNumbers = [], _companyNames = [];
 let _reqs = [], _reqProjectId = null;
 let _groupByFamily = false;
+let searchTimer;
+let requestId = 0;
 // Tipo de vista de la lista de proyectos (se recuerda en el navegador)
 const VISTAS = [['tarjetas', 'grid_view', 'Tarjetas'], ['lista', 'table_rows', 'Lista'], ['compacta', 'view_comfy', 'Compacta'], ['tablero', 'view_kanban', 'Tablero']];
 let _vista = (() => { try { return localStorage.getItem('adg_proyectos_vista') || 'tarjetas'; } catch { return 'tarjetas'; } })();
@@ -28,13 +30,23 @@ export function render() {
   load();
   api.get('/users').then(u => { _users = u; }).catch(() => {});
   api.get('/document-types').then(d => { _docTypes = d; }).catch(() => {});
-  api.get('/projects/families').then(f => { _families = f; }).catch(() => {});
+  const pagina = document.getElementById('projects-page');
+  api.get('/projects/families').then(familias => {
+    if (!pagina.isConnected) return;
+    _families = familias;
+    const filtroFamilia = pagina.querySelector('#family-filter');
+    if (filtroFamilia) filtroFamilia.innerHTML = opcionesFamilia();
+  }).catch(() => {});
   api.get('/projects/clients').then(c => { _clients = c; }).catch(() => {});
   api.get('/projects/document-numbers').then(d => { _docNumbers = d; }).catch(() => {});
   api.get('/projects/company-names').then(c => { _companyNames = c; }).catch(() => {});
 }
 
 function load() {
+  clearTimeout(searchTimer);
+  const pagina = document.getElementById('projects-page');
+  if (!pagina) return;
+  const id = ++requestId;
   const query = { ..._filter };
   let localFilter = null;
   if (_filter.status === 'comercial') {
@@ -46,11 +58,21 @@ function load() {
   }
 
   api.get('/projects', query).then(data => {
+    if (!pagina.isConnected || id !== requestId) return;
     _projects = localFilter ? data.filter(localFilter) : data;
-    renderPage();
+    if (!pagina.querySelector('#projects-results')) renderPage();
+    else renderResults(pagina);
   }).catch(() => {
-    document.getElementById('projects-page').innerHTML = '<p class="text-center text-gray-400 py-16">Error al cargar proyectos</p>';
+    if (!pagina.isConnected || id !== requestId) return;
+    if (!pagina.querySelector('#projects-results')) renderPage();
+    pagina.querySelector('#projects-count').textContent = '';
+    pagina.querySelector('#projects-results').innerHTML = '<p class="text-center text-gray-500 py-16" role="alert">Error al cargar proyectos</p>';
   });
+}
+
+function opcionesFamilia() {
+  return `<option value="">Todas las familias</option>
+        ${_families.map(f => `<option value="${esc(f.family)}" ${_filter.family===f.family?'selected':''}>${esc(f.family)} (${f.count})</option>`).join('')}`;
 }
 
 function renderPage() {
@@ -61,13 +83,13 @@ function renderPage() {
     <!-- Encabezado y filtros fijos al hacer scroll -->
     <div class="sticky top-0 z-20 bg-gray-50 shadow-sm -mx-6 -mt-6 px-6 pt-6 pb-1 mb-4 border-b border-gray-200/70">
     ${pageHeader('Proyectos',
-      `${_projects.length} proyecto${_projects.length !== 1 ? 's' : ''}`,
+      '<span id="projects-count" aria-live="polite"></span>',
       `<button id="new-project-btn" class="btn-primary">${icon('add', 20)} Nuevo Proyecto</button>`)}
 
     <div class="flex flex-wrap gap-3 mb-5">
       <div class="relative flex-1 min-w-[200px]">
         <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" style="font-size:18px">search</span>
-        <input id="search-input" class="input pl-9" placeholder="Buscar por nombre, cliente o código..." value="${_filter.search}">
+        <input id="search-input" class="input pl-9" placeholder="Buscar por nombre, cliente o código..." value="${esc(_filter.search)}">
       </div>
       <select id="status-filter" class="input w-auto">
         <option value="">Todos los estados</option>
@@ -81,8 +103,7 @@ function renderPage() {
         <option value="web"            ${_filter.status==='web'           ?'selected':''}>🌐 Solo Web Impacto Real</option>
       </select>
       <select id="family-filter" class="input w-auto">
-        <option value="">Todas las familias</option>
-        ${_families.map(f => `<option value="${esc(f.family)}" ${_filter.family===f.family?'selected':''}>${esc(f.family)} (${f.count})</option>`).join('')}
+        ${opcionesFamilia()}
       </select>
       <div class="flex bg-white border border-gray-200 rounded-lg p-0.5" role="group" aria-label="Tipo de vista">
         ${VISTAS.map(([k, ic, t]) => `<button class="vista-btn px-2.5 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1 transition-colors ${_vista === k ? 'bg-primary-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'}" data-vista="${k}" title="Vista ${t}">${icon(ic, 16)}<span class="hidden 2xl:inline">${t}</span></button>`).join('')}
@@ -93,14 +114,17 @@ function renderPage() {
     </div>
     </div>
 
-    ${renderProjectsSection()}`;
+    <div id="projects-results"></div>`;
 
   document.getElementById('new-project-btn')?.addEventListener('click', () => openModal());
-  document.getElementById('empty-new-btn')?.addEventListener('click',  () => openModal());
 
   document.getElementById('search-input').addEventListener('input', e => {
     _filter.search = e.target.value;
-    load();
+    clearTimeout(searchTimer);
+    requestId++;
+    searchTimer = setTimeout(() => {
+      if (container.isConnected) load();
+    }, 220);
   });
   document.getElementById('status-filter').addEventListener('change', e => {
     _filter.status = e.target.value;
@@ -120,7 +144,15 @@ function renderPage() {
     renderPage();
   });
 
-  document.querySelectorAll('.edit-btn').forEach(btn => {
+  renderResults(container);
+}
+
+function renderResults(container) {
+  const resultados = container.querySelector('#projects-results');
+  container.querySelector('#projects-count').textContent = `${_projects.length} proyecto${_projects.length !== 1 ? 's' : ''}`;
+  resultados.innerHTML = renderProjectsSection();
+  resultados.querySelector('#empty-new-btn')?.addEventListener('click', () => openModal());
+  resultados.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       e.preventDefault();
       const id = btn.dataset.id;
@@ -129,7 +161,7 @@ function renderPage() {
     });
   });
 
-  document.querySelectorAll('.history-btn').forEach(btn => {
+  resultados.querySelectorAll('.history-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       e.preventDefault();
       const id = btn.dataset.id;
@@ -138,7 +170,7 @@ function renderPage() {
     });
   });
 
-  document.querySelectorAll('.delete-btn').forEach(btn => {
+  resultados.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.preventDefault();
       const id = btn.dataset.id;
