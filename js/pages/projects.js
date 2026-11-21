@@ -316,6 +316,7 @@ function sellosVisibilidad(p) {
 }
 
 function projectCard(p) {
+  const totalDocumentos = (p.documents_count ?? 0) + (p.informes_estado_count ?? 0);
   const overdue = isOverdue(p);
   return `
   <a href="#/projects/${p.id}" class="card p-5 hover:shadow-md transition-shadow block ${overdue ? 'border-l-4 border-l-red-400' : ''}">
@@ -364,7 +365,7 @@ function projectCard(p) {
       <span>${esc(p.responsible_name || 'Sin responsable')}</span>
       <div class="flex gap-3">
         ${p.contracts_count > 0 ? `<span>📄 ${p.contracts_count}</span>` : ''}
-        ${p.documents_count > 0 ? `<span>📁 ${p.documents_count}</span>` : ''}
+        ${totalDocumentos > 0 ? `<span title="Documentos e informes de estado">📁 ${totalDocumentos}</span>` : ''}
         ${p.messages_count  > 0 ? `<span>💬 ${p.messages_count}</span>` : ''}
       </div>
     </div>
